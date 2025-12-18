@@ -157,6 +157,17 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
 
+## Phase Z: Constitution Compliance Verification
+
+**Purpose**: Verify all work aligns with project constitution
+
+- [ ] TXXX Verify spec-driven development compliance (spec complete before implementation)
+- [ ] TXXX Confirm adherence to Spec-Kit Plus workflow: /sp.specify → /sp.plan → /sp.tasks → /sp.implement
+- [ ] TXXX Validate reproducibility and traceability of all artifacts
+- [ ] TXXX Confirm quality and consistency standards met for technical audience
+- [ ] TXXX Verify human-in-the-loop validation performed where required
+- [ ] TXXX Check all development workflow constraints satisfied
+
 ---
 
 ## Dependencies & Execution Order

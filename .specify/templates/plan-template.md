@@ -31,7 +31,30 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+### Spec-driven development compliance
+- [ ] Specification exists and is complete before any implementation begins
+- [ ] Specification includes testable acceptance criteria
+- [ ] Specification aligns with user requirements
+
+### Spec-Kit Plus workflow compliance
+- [ ] Follows /sp.specify → /sp.plan → /sp.tasks → /sp.implement sequence
+- [ ] All artifacts are properly linked and traceable
+- [ ] Workflow deviations are explicitly justified
+
+### Reproducibility and traceability
+- [ ] All implementation steps can be traced back to specification
+- [ ] Plans link to relevant tasks and implementation
+- [ ] Complete audit trail exists for verification
+
+### Quality and consistency
+- [ ] AI agent capabilities leveraged appropriately
+- [ ] Output meets established quality standards
+- [ ] Consistent formatting and terminology maintained
+
+### Technical requirements
+- [ ] Technology stack aligns with constraints (Docusaurus v3+, React/MDX)
+- [ ] Deployment strategy supports GitHub Pages
+- [ ] Performance and accessibility requirements met
 
 ## Project Structure
 

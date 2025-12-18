@@ -113,3 +113,10 @@
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+
+### Constitution Compliance
+
+- **CC-001**: Specification must be complete and approved before any implementation begins
+- **CC-002**: All requirements traceable to user stories and business value
+- **CC-003**: Output meets quality standards for technical audience accessibility
+- **CC-004**: Implementation follows Spec-Kit Plus workflow: /sp.specify → /sp.plan → /sp.tasks → /sp.implement

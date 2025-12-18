@@ -1,55 +1,56 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: 1.0.0 → 1.1.0
+- Modified principles:
+  - PRINCIPLE_1_NAME: Placeholder → Spec-driven development as first-class artifact
+  - PRINCIPLE_2_NAME: Placeholder → Strict adherence to Spec-Kit Plus workflow
+  - PRINCIPLE_3_NAME: Placeholder → Reproducibility through traceable specifications
+  - PRINCIPLE_4_NAME: Placeholder → High-quality, consistent output leveraging AI agent capabilities
+  - PRINCIPLE_5_NAME: Placeholder → Clarity and accessibility for technical audience
+  - PRINCIPLE_6_NAME: Placeholder → Human-in-the-loop validation and verification
+- Added sections: Key Standards, Development Workflow, Success Criteria
+- Removed sections: None
+- Templates requiring updates:
+  - .specify/templates/plan-template.md ✅ updated
+  - .specify/templates/spec-template.md ✅ updated
+  - .specify/templates/tasks-template.md ✅ updated
+  - .specify/templates/phr-template.prompt.md ✅ updated
+  - .specify/templates/commands/sp.constitution.md ✅ updated
+- Follow-up TODOs: None
+-->
+
+# AI/Spec-Driven Book Creation Hackathon Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Spec-driven development as first-class artifact
+Spec-driven development is the foundation of all work. Every feature, change, and addition must begin with a clear, well-defined specification before implementation. Specifications serve as the authoritative source of truth and must be complete, testable, and agreed upon before any code is written.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Strict adherence to Spec-Kit Plus workflow
+All development follows the Spec-Kit Plus process: /sp.specify → /sp.plan → /sp.tasks → /sp.implement. This ensures systematic, reproducible development with traceable artifacts at each stage. Deviations from this workflow require explicit justification and approval.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Reproducibility through traceable specifications, plans, tasks, and implementations
+Every step of the development process must be traceable and reproducible. Specifications link to plans, plans link to tasks, and tasks link back to implementations. This creates a complete audit trail enabling verification, debugging, and future maintenance.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. High-quality, consistent output leveraging AI agent capabilities
+AI agents (primarily Claude Code) are leveraged to produce high-quality, consistent output. The focus is on maximizing the effectiveness of AI assistance while maintaining human oversight and quality control. AI-generated code must meet the same standards as human-written code.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Clarity and accessibility for technical audience
+All documentation, code, and deliverables must be clear and accessible to a technical audience interested in AI/agentic systems. This includes proper formatting, clear explanations, code examples, and step-by-step instructions where appropriate.
 
-### [PRINCIPLE_6_NAME]
+### VI. Human-in-the-loop validation and verification
+Human judgment remains essential in the development process. Critical decisions, quality validation, and creative direction are validated by humans. AI serves as a tool to accelerate development, not replace human oversight and creativity.
 
+## Key Standards
 
-[PRINCIPLE__DESCRIPTION]
+All content generation must follow the Spec-Kit Plus process: /sp.specify → /sp.plan → /sp.tasks → /sp.implement. Use Docusaurus for site structure, markdown for content, and proper configuration for GitHub Pages deployment. Writing style must be clear, professional, technical where appropriate, with code examples, diagrams (via Mermaid), and step-by-step explanations. Maintain uniform voice, formatting, headings, and terminology across all chapters/sections. Primary tool is Claude Code with preference for spec-driven commands. All changes must be committed with meaningful messages and GitHub Pages deployment verified live.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Development Workflow
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
-
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Technology stack includes Docusaurus v3+, React/MDX, Spec-Kit Plus templates, and GitHub repository with Pages enabled. Book structure must include minimum outline with introduction, core chapters, conclusion, and optional appendices (e.g., references, glossary). Deployment must be fully functional site live on GitHub Pages with no broken links, proper navigation, and responsive design. No external paid services beyond allowed AI APIs (Claude, Qwen, Gemini via CCR if configured). Prioritize completeness and deployability over exhaustive depth within hackathon timebox.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development practices. Amendments require explicit documentation, approval from project stakeholders, and a migration plan for existing artifacts. All implementations must verify compliance with these principles. All code reviews must check for adherence to spec-driven development practices. Use CLAUDE.md for runtime development guidance and standards.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.1.0 | **Ratified**: 2025-12-18 | **Last Amended**: 2025-12-18
