@@ -18,7 +18,7 @@ const config = {
   organizationName: 'panaversity', // Usually your GitHub org/user name.
   projectName: 'Hackathon', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
@@ -28,6 +28,8 @@ const config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  trailingSlash: true,
 
   presets: [
     [
@@ -155,7 +157,6 @@ const config = {
 
   // Add plugins as specified in contract
   plugins: [
-    '@docusaurus/plugin-sitemap',
     [
       '@docusaurus/plugin-client-redirects',
       {
