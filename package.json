@@ -1,0 +1,55 @@
+{
+  "name": "hackathon",
+  "version": "1.0.0",
+  "description": "Physical AI & Humanoid Robotics course book",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docusaurus": "docusaurus",
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "swizzle": "docusaurus swizzle",
+    "deploy": "docusaurus deploy",
+    "clear": "docusaurus clear",
+    "serve": "docusaurus serve",
+    "write-translations": "docusaurus write-translations",
+    "write-heading-ids": "docusaurus write-heading-ids"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hamzanasir123/Hackathon.git"
+  },
+  "keywords": [
+    "docusaurus",
+    "ai",
+    "robotics",
+    "education"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hamzanasir123/Hackathon/issues"
+  },
+  "homepage": "https://github.com/hamzanasir123/Hackathon#readme",
+  "dependencies": {
+    "@docusaurus/core": "^3.9.2",
+    "@docusaurus/plugin-client-redirects": "^3.9.2",
+    "@docusaurus/preset-classic": "^3.9.2",
+    "@docusaurus/theme-search-algolia": "^3.9.2",
+    "@mdx-js/react": "^3.1.1",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.5%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

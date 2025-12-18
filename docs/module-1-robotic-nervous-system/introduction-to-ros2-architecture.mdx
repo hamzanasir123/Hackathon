@@ -1,0 +1,93 @@
+---
+sidebar_label: Introduction to ROS2 Architecture
+sidebar_position: 2
+title: Introduction to ROS2 Architecture
+description: Understanding the fundamental architecture of Robot Operating System 2
+---
+
+# Introduction to ROS2 Architecture
+
+The Robot Operating System 2 (ROS2) provides a flexible framework for writing robot software. It is a collection of tools, libraries, and conventions that aim to simplify the task of creating complex and robust robot behavior across a wide variety of robot platforms.
+
+## Core Concepts
+
+ROS2 is built on several core concepts that enable distributed computing and communication between different components of a robotic system.
+
+### Nodes
+
+Nodes are the fundamental building blocks of a ROS2 system. Each node is a process that performs a specific function and communicates with other nodes through topics, services, or actions.
+
+```python
+import rclpy
+from rclpy.node import Node
+
+class MinimalPublisher(Node):
+
+    def __init__(self):
+        super().__init__('minimal_publisher')
+        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.i = 0
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = 'Hello World: %d' % self.i
+        self.publisher_.publish(msg)
+        self.get_logger().info('Publishing: "%s"' % msg.data)
+        self.i += 1
+```
+
+### Topics and Messages
+
+Topics are named buses over which nodes exchange messages. Messages are the data structures that are passed between nodes.
+
+:::note
+Topics enable asynchronous communication between nodes, making the system robust and scalable.
+:::
+
+### Services and Actions
+
+Services provide synchronous request/response communication, while actions provide asynchronous goal-oriented communication with feedback.
+
+```cpp
+// Example service request
+service_client->async_send_request(request);
+```
+
+## Communication Patterns
+
+ROS2 supports several communication patterns:
+
+- **Publish/Subscribe**: One-to-many communication
+- **Request/Response**: Synchronous communication
+- **Action**: Goal-oriented communication with feedback
+
+## Quality of Service (QoS)
+
+ROS2 introduces Quality of Service settings that allow fine-tuning of communication behavior:
+
+- Reliability: Best effort or reliable
+- Durability: Volatile or transient local
+- History: Keep last or keep all
+
+:::tip
+Use reliable QoS settings for critical data like sensor readings, and best effort for high-frequency data like camera images.
+:::
+
+## Implementation Considerations
+
+When implementing ROS2 systems, consider:
+
+1. **Modularity**: Design nodes to have single responsibilities
+2. **Performance**: Choose appropriate QoS settings
+3. **Robustness**: Handle connection and disconnection events
+4. **Security**: Implement authentication and encryption when needed
+
+## Summary
+
+ROS2 provides a robust foundation for developing complex robotic systems through its distributed architecture and communication patterns. Understanding these core concepts is essential for effective robot software development.
+
+:::caution
+Always consider the network topology and resource constraints when designing ROS2 systems for deployment on real robots.
+:::

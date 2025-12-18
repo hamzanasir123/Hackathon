@@ -1,0 +1,61 @@
+# Site Configuration Contract for Docusaurus Book Layout
+
+# This contract defines the expected structure and configuration for the Docusaurus site
+
+site_metadata:
+  title: "Physical AI & Humanoid Robotics"
+  tagline: "Bridging Digital Intelligence and Physical Embodiment"
+  url: "https://<username>.github.io"
+  baseUrl: "/"
+  favicon: "img/favicon.ico"
+  organizationName: "<organization>"
+  projectName: "<project-name>"
+  deploymentBranch: "gh-pages"
+
+theme_config:
+  navbar:
+    title: "Physical AI & Humanoid Robotics"
+    logo:
+      alt: "Course Logo"
+      src: "img/logo.svg"
+    items:
+      - type: "doc"
+        docId: "intro"
+        position: "left"
+        label: "Docs"
+      - href: "https://github.com/<organization>/<project-name>"
+        label: "GitHub"
+        position: "right"
+  footer:
+    style: "dark"
+    links:
+      - title: "Docs"
+        items:
+          - label: "Introduction"
+            to: "/docs/intro"
+    copyright: "Copyright © 2025 Panaversity. Built with Docusaurus."
+
+plugins:
+  - "@docusaurus/plugin-content-docs"
+  - "@docusaurus/plugin-content-pages"
+  - "@docusaurus/plugin-sitemap"
+  - "@docusaurus/plugin-client-redirects"
+
+presets:
+  - name: "@docusaurus/preset-classic"
+    options:
+      docs:
+        sidebarPath: "./sidebars.js"
+        editUrl: "https://github.com/<organization>/<project-name>/edit/main/"
+      theme: {}
+
+markdown_features:
+  admonitions: true
+  mermaid: true
+  codeblock_titles: true
+  details: true
+
+build_requirements:
+  node_version: ">=18.0"
+  static_files_only: true
+  github_pages_compatible: true
