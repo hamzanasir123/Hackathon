@@ -1,0 +1,175 @@
+# Contract: Educational Content Components API
+
+## Purpose
+Defines the interface contracts for educational content components used in the ROS 2 module. These components will be implemented as React components in the Docusaurus documentation site.
+
+## Component: RosArchitectureDiagram
+
+### Interface Definition
+```typescript
+interface RosArchitectureDiagramProps {
+  variant: 'basic' | 'advanced' | 'communication' | 'components';
+  showLegend: boolean;
+  highlightedElements?: string[];
+  onElementClick?: (element: string) => void;
+}
+
+interface RosArchitectureDiagram {
+  render(): JSX.Element;
+  getSupportedVariants(): string[];
+  highlightElement(elementId: string): void;
+  clearHighlights(): void;
+}
+```
+
+### Functional Requirements
+- FR-CON-001: Component MUST render ROS 2 architecture diagrams based on the specified variant
+- FR-CON-002: Component MUST display a legend when showLegend is true
+- FR-CON-003: Component MUST highlight specified elements when highlightedElements is provided
+- FR-CON-004: Component MUST trigger onElementClick callback when diagram elements are clicked
+- FR-CON-005: Component MUST be responsive and work on different screen sizes
+
+## Component: CodeExample
+
+### Interface Definition
+```typescript
+interface CodeExampleProps {
+  title: string;
+  language: 'python' | 'xml' | 'bash' | 'yaml' | 'launch';
+  code: string;
+  explanation: string;
+  showLineNumbers?: boolean;
+  highlightLines?: number[];
+  executable?: boolean;
+  executionOutput?: string;
+}
+
+interface CodeExample {
+  render(): JSX.Element;
+  execute?(): Promise<string>; // Only if executable is true
+  copyToClipboard(): void;
+}
+```
+
+### Functional Requirements
+- FR-CON-006: Component MUST display code with proper syntax highlighting for the specified language
+- FR-CON-007: Component MUST show line numbers if showLineNumbers is true
+- FR-CON-008: Component MUST highlight specific lines when highlightLines is provided
+- FR-CON-009: Component MUST provide copy-to-clipboard functionality
+- FR-CON-010: Component MUST display explanation text below the code block
+
+## Component: ConceptExplainer
+
+### Interface Definition
+```typescript
+interface ConceptExplainerProps {
+  title: string;
+  concept: string;
+  analogy: string;
+  diagramType?: string;
+  examples: string[];
+  relatedConcepts?: string[];
+}
+
+interface ConceptExplainer {
+  render(): JSX.Element;
+  getRelatedConcepts(): string[];
+}
+```
+
+### Functional Requirements
+- FR-CON-011: Component MUST present the concept with a real-world analogy as required by specifications
+- FR-CON-012: Component MUST display examples of the concept in practice
+- FR-CON-013: Component MUST show related concepts for deeper understanding
+- FR-CON-014: Component MUST use visual elements when diagramType is specified
+
+## Component: InteractiveTutorial
+
+### Interface Definition
+```typescript
+interface InteractiveTutorialProps {
+  title: string;
+  steps: TutorialStep[];
+  estimatedTime: number; // in minutes
+  prerequisites?: string[];
+  onStepComplete?: (stepIndex: number) => void;
+  onComplete?: () => void;
+}
+
+interface TutorialStep {
+  id: string;
+  title: string;
+  description: string;
+  code?: string;
+  verification?: string; // How to verify this step is completed
+  nextButtonLabel?: string;
+}
+
+interface InteractiveTutorial {
+  render(): JSX.Element;
+  getCurrentStep(): TutorialStep;
+  goToStep(index: number): void;
+  nextStep(): void;
+  previousStep(): void;
+  isComplete(): boolean;
+}
+```
+
+### Functional Requirements
+- FR-CON-015: Component MUST guide users through tutorial steps in sequence
+- FR-CON-016: Component MUST track progress through the tutorial
+- FR-CON-017: Component MUST call onStepComplete when a step is finished
+- FR-CON-018: Component MUST call onComplete when all steps are finished
+- FR-CON-019: Component MUST show estimated time for completion
+
+## Component: RosPackageExample
+
+### Interface Definition
+```typescript
+interface RosPackageExampleProps {
+  packageName: string;
+  description: string;
+  files: PackageFile[];
+  runInstructions: string;
+  expectedOutput: string;
+  rosDistribution: 'humble' | 'iron' | 'rolling';
+}
+
+interface PackageFile {
+  path: string;
+  content: string;
+  language: string;
+}
+
+interface RosPackageExample {
+  render(): JSX.Element;
+  downloadPackage(): Promise<Blob>;
+  getRunInstructions(): string;
+}
+```
+
+### Functional Requirements
+- FR-CON-020: Component MUST display ROS 2 package structure and files
+- FR-CON-021: Component MUST provide download functionality for the complete package
+- FR-CON-022: Component MUST show appropriate run instructions for the specified ROS distribution
+- FR-CON-023: Component MUST display expected output for verification
+- FR-CON-024: Component MUST validate package compatibility with specified ROS distribution
+
+## Validation Criteria
+
+### Component Interface Compliance
+- All components MUST accept required props as defined in their interfaces
+- All components MUST render without errors when provided valid props
+- All callback functions MUST be properly typed and documented
+- All components MUST be compatible with Docusaurus MDX syntax
+
+### Performance Requirements
+- Components MUST render within 200ms of prop changes
+- Components MUST not cause memory leaks
+- Components MUST be optimized for repeated use throughout documentation
+
+### Accessibility Requirements
+- All components MUST be keyboard navigable
+- All components MUST support screen readers
+- All components MUST meet WCAG 2.1 AA standards
+- All interactive elements MUST have proper ARIA labels

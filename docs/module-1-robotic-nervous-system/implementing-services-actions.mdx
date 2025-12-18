@@ -1,0 +1,548 @@
+---
+sidebar_label: "Implementing Services and Actions"
+sidebar_position: 5
+title: "Implementing Services and Actions"
+description: "Tutorial on creating services for synchronous communication and actions for goal-oriented tasks in ROS 2"
+---
+
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import RosPackageExample from '@site/src/components/RosPackageExample';
+
+# Implementing Services and Actions
+
+In this section, we'll explore two other important communication patterns in ROS 2: services for synchronous request/response communication and actions for goal-oriented tasks with feedback.
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+
+- Create service servers and clients for synchronous communication
+- Implement actions for long-running tasks with feedback
+- Understand when to use services vs actions vs topics
+- Design effective service and action interfaces
+- Handle errors and cancellations in actions
+
+## Table of Contents
+
+1. [Understanding Services and Actions](#understanding-services-and-actions)
+2. [Creating Services](#creating-services)
+3. [Creating Action Servers and Clients](#creating-action-servers-and-clients)
+4. [When to Use Each Communication Pattern](#when-to-use-each-communication-pattern)
+5. [Best Practices](#best-practices)
+6. [Exercises](#exercises)
+
+## Understanding Services and Actions
+
+While topics enable asynchronous communication, services and actions provide other communication patterns:
+
+- **Services**: Synchronous request/response communication
+- **Actions**: Asynchronous goal-oriented communication with feedback and cancellation
+
+<ConceptExplainer
+  title="Services vs Actions"
+  concept="Services provide synchronous request/response communication, while actions provide goal-oriented communication with feedback and cancellation."
+  analogy="Think of services like asking a question and waiting for an answer immediately, while actions are like giving a task and receiving periodic updates on progress until completion (or cancellation)."
+  examples={[
+    "Services: Calculating a value, checking a database, validating input",
+    "Actions: Moving a robot to a location, performing a complex task, executing a sequence of operations"
+  ]}
+  relatedConcepts={["Topics", "Nodes", "Messages"]}
+/>
+
+## Creating Services
+
+Services provide synchronous request/response communication. A service server receives requests and sends responses.
+
+### Creating a Service Server
+
+<CodeExample
+  title="Service Server Implementation"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class MinimalService(Node):
+    def __init__(self):
+        super().__init__('minimal_service')
+        # Create a service with the name 'add_two_ints'
+        self.srv = self.create_service(
+            AddTwoInts,
+            'add_two_ints',
+            self.add_two_ints_callback
+        )
+
+    def add_two_ints_callback(self, request, response):
+        # Process the request and populate the response
+        response.sum = request.a + request.b
+        self.get_logger().info(f'Incoming request: {request.a} + {request.b} = {response.sum}')
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_service = MinimalService()
+
+    try:
+        rclpy.spin(minimal_service)
+    except KeyboardInterrupt:
+        minimal_service.get_logger().info('Shutting down service server...')
+    finally:
+        minimal_service.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A service server that adds two integers. When a request is received, it calculates the sum and returns it in the response. The service is named 'add_two_ints'."
+/>
+
+### Creating a Service Client
+
+<CodeExample
+  title="Service Client Implementation"
+  language="python"
+  code={`import sys
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class MinimalClient(Node):
+    def __init__(self):
+        super().__init__('minimal_client')
+        # Create a client for the 'add_two_ints' service
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+
+        # Wait for the service to be available
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service not available, waiting...')
+
+        self.request = AddTwoInts.Request()
+
+    def send_request(self, a, b):
+        self.request.a = a
+        self.request.b = b
+
+        # Call the service asynchronously
+        self.future = self.cli.call_async(self.request)
+        rclpy.spin_until_future_complete(self, self.future)
+
+        return self.future.result()
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_client = MinimalClient()
+
+    # Get values from command line arguments or use defaults
+    a = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    b = int(sys.argv[2]) if len(sys.argv) > 2 else 2
+
+    response = minimal_client.send_request(a, b)
+    minimal_client.get_logger().info(f'Result: {a} + {b} = {response.sum}')
+
+    minimal_client.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A service client that sends a request to the 'add_two_ints' service and waits for the response. It waits for the service to be available before making the request."
+/>
+
+### Custom Service Definition
+
+To create custom services, define a `.srv` file in your package's `srv/` directory:
+
+```
+# AddThreeInts.srv
+int64 a
+int64 b
+int64 c
+---
+int64 sum
+```
+
+Then use it in your Python code:
+
+<CodeExample
+  title="Custom Service Implementation"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from my_package.srv import AddThreeInts  # Import your custom service
+
+class CustomServiceServer(Node):
+    def __init__(self):
+        super().__init__('custom_service_server')
+        self.srv = self.create_service(
+            AddThreeInts,
+            'add_three_ints',
+            self.add_three_ints_callback
+        )
+
+    def add_three_ints_callback(self, request, response):
+        response.sum = request.a + request.b + request.c
+        self.get_logger().info(
+            f'Adding {request.a} + {request.b} + {request.c} = {response.sum}'
+        )
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    server = CustomServiceServer()
+
+    try:
+        rclpy.spin(server)
+    except KeyboardInterrupt:
+        server.get_logger().info('Shutting down custom service server...')
+    finally:
+        server.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="Example of using a custom service type. Custom services are defined in .srv files and allow you to create request/response interfaces specific to your application."
+/>
+
+## Creating Action Servers and Clients
+
+Actions are designed for long-running tasks that provide feedback and can be cancelled. They have three parts: goal, feedback, and result.
+
+### Creating an Action Server
+
+<CodeExample
+  title="Action Server Implementation"
+  language="python"
+  code={`import time
+import rclpy
+from rclpy.action import ActionServer, CancelResponse, GoalResponse
+from rclpy.node import Node
+from example_interfaces.action import Fibonacci
+
+class FibonacciActionServer(Node):
+    def __init__(self):
+        super().__init__('fibonacci_action_server')
+
+        # Create an action server
+        self._action_server = ActionServer(
+            self,
+            Fibonacci,
+            'fibonacci',
+            execute_callback=self.execute_callback,
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup(),
+            goal_callback=self.goal_callback,
+            cancel_callback=self.cancel_callback
+        )
+
+    def destroy(self):
+        self._action_server.destroy()
+        super().destroy_node()
+
+    def goal_callback(self, goal_request):
+        """Accept or reject a goal."""
+        self.get_logger().info(f'Received goal request: {goal_request.order}')
+        return GoalResponse.ACCEPT
+
+    def cancel_callback(self, goal_handle):
+        """Accept or reject a cancellation request."""
+        self.get_logger().info('Received cancel request')
+        return CancelResponse.ACCEPT
+
+    def execute_callback(self, goal_handle):
+        """Execute the goal."""
+        self.get_logger().info('Executing goal...')
+
+        # Create feedback and result messages
+        feedback_msg = Fibonacci.Feedback()
+        feedback_msg.sequence = [0, 1]
+
+        # Perform the action (calculate Fibonacci sequence)
+        for i in range(1, goal_handle.request.order):
+            # Check if there's a cancellation request
+            if goal_handle.is_cancel_requested:
+                goal_handle.canceled()
+                self.get_logger().info('Goal canceled')
+                return Fibonacci.Result()
+
+            # Update the sequence
+            feedback_msg.sequence.append(
+                feedback_msg.sequence[i] + feedback_msg.sequence[i-1])
+
+            # Publish feedback
+            goal_handle.publish_feedback(feedback_msg)
+
+            # Simulate work by sleeping
+            time.sleep(1)
+
+        # Complete the goal
+        goal_handle.succeed()
+        result = Fibonacci.Result()
+        result.sequence = feedback_msg.sequence
+        self.get_logger().info(f'Result: {result.sequence}')
+
+        return result
+
+def main(args=None):
+    rclpy.init(args=args)
+    action_server = FibonacciActionServer()
+
+    try:
+        rclpy.spin(action_server)
+    except KeyboardInterrupt:
+        action_server.get_logger().info('Shutting down action server...')
+    finally:
+        action_server.destroy()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="An action server that calculates a Fibonacci sequence. It provides feedback during execution and can be canceled. The action is named 'fibonacci'."
+/>
+
+### Creating an Action Client
+
+<CodeExample
+  title="Action Client Implementation"
+  language="python"
+  code={`import time
+import rclpy
+from rclpy.action import ActionClient
+from rclpy.node import Node
+from example_interfaces.action import Fibonacci
+
+class FibonacciActionClient(Node):
+    def __init__(self):
+        super().__init__('fibonacci_action_client')
+        self._action_client = ActionClient(
+            self,
+            Fibonacci,
+            'fibonacci'
+        )
+
+    def send_goal(self, order):
+        # Wait for the action server to be available
+        self._action_client.wait_for_server()
+
+        # Create a goal message
+        goal_msg = Fibonacci.Goal()
+        goal_msg.order = order
+
+        # Send the goal and get a future
+        self._send_goal_future = self._action_client.send_goal_async(
+            goal_msg,
+            feedback_callback=self.feedback_callback
+        )
+
+        # Set callbacks for when the goal is accepted
+        self._send_goal_future.add_done_callback(self.goal_response_callback)
+
+    def goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('Goal rejected :(')
+            return
+
+        self.get_logger().info('Goal accepted :)')
+
+        # Get the result future
+        self._get_result_future = goal_handle.get_result_async()
+        self._get_result_future.add_done_callback(self.get_result_callback)
+
+    def get_result_callback(self, future):
+        result = future.result().result
+        self.get_logger().info(f'Result: {result.sequence}')
+        rclpy.shutdown()
+
+    def feedback_callback(self, feedback_msg):
+        feedback = feedback_msg.feedback
+        self.get_logger().info(f'Received feedback: {feedback.sequence}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    action_client = FibonacciActionClient()
+
+    # Send a goal to calculate Fibonacci sequence of order 10
+    action_client.send_goal(10)
+
+    try:
+        rclpy.spin(action_client)
+    except KeyboardInterrupt:
+        action_client.get_logger().info('Shutting down action client...')
+
+if __name__ == '__main__':
+    main()`}
+  explanation="An action client that sends a goal to the Fibonacci action server, receives feedback during execution, and gets the final result."
+/>
+
+### Custom Action Definition
+
+To create custom actions, define a `.action` file in your package's `action/` directory:
+
+```
+# NavigateToPose.action
+# Goal definition
+geometry_msgs/PoseStamped pose
+---
+# Result definition
+bool success
+string message
+---
+# Feedback definition
+float32 distance_remaining
+string message
+```
+
+## When to Use Each Communication Pattern
+
+Understanding when to use topics, services, or actions is crucial for effective ROS 2 design:
+
+### Use Topics When:
+- Data is continuously published (e.g., sensor data)
+- Multiple subscribers need the same information
+- Communication can be asynchronous
+- Real-time performance is important
+
+### Use Services When:
+- Request/response pattern is needed
+- Operation is relatively quick (< 1 second)
+- Synchronous communication is acceptable
+- Error handling is straightforward
+
+### Use Actions When:
+- Operation takes a long time (> 1 second)
+- Feedback during execution is needed
+- Operation might be canceled
+- Result includes complex status information
+
+<ConceptExplainer
+  title="Communication Pattern Selection"
+  concept="Different communication patterns in ROS 2 are suited for different scenarios."
+  analogy="Think of communication patterns like different types of conversations: topics are like announcements broadcast to everyone, services are like asking a question and waiting for an answer, and actions are like assigning a task and checking on progress periodically."
+  examples={[
+    "Topics: Sensor data, robot pose, system status",
+    "Services: Calculations, configuration changes, database queries",
+    "Actions: Navigation, manipulation, calibration procedures"
+  ]}
+  relatedConcepts={["Topics", "Services", "Actions"]}
+/>
+
+## Best Practices
+
+When implementing services and actions, follow these best practices:
+
+1. **Design clear interfaces** with descriptive names and well-defined messages
+2. **Handle errors gracefully** with appropriate error codes
+3. **Provide meaningful feedback** in actions
+4. **Set reasonable timeouts** for service calls
+5. **Implement cancellation properly** in actions
+
+### Example: Robust Service with Error Handling
+
+<CodeExample
+  title="Robust Service with Error Handling"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class RobustService(Node):
+    def __init__(self):
+        super().__init__('robust_service')
+        self.srv = self.create_service(
+            AddTwoInts,
+            'robust_add_two_ints',
+            self.robust_add_callback
+        )
+
+    def robust_add_callback(self, request, response):
+        try:
+            # Validate inputs
+            if request.a > 1000000 or request.b > 1000000:
+                self.get_logger().warn('Large numbers detected, proceeding anyway')
+
+            # Perform the calculation
+            result = request.a + request.b
+
+            # Check for overflow (though Python handles large integers)
+            if result > 2**31 - 1:  # If using fixed-size integers
+                self.get_logger().error('Result too large')
+                response.sum = 0  # or some error indicator
+                return response
+
+            response.sum = result
+            self.get_logger().info(f'Calculated: {request.a} + {request.b} = {response.sum}')
+
+        except Exception as e:
+            self.get_logger().error(f'Error in calculation: {e}')
+            response.sum = 0  # or some error indicator
+
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    service = RobustService()
+
+    try:
+        rclpy.spin(service)
+    except KeyboardInterrupt:
+        service.get_logger().info('Shutting down robust service...')
+    finally:
+        service.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A service implementation with error handling and input validation. This approach makes the service more robust in real-world scenarios."
+/>
+
+## Running the Examples
+
+We've created complete example packages that demonstrate services and actions. You can find them in the examples/ros2_packages directory:
+
+<RosPackageExample
+  title="Service Example Package"
+  description="Demonstrates service server and client implementation"
+  packageName="service_example"
+  packagePath="/examples/ros2_packages/service_example"
+  runInstructions={[
+    "Terminal 1 - Start the service server:",
+    "ros2 run service_example service_server",
+    "",
+    "Terminal 2 - Run the service client:",
+    "ros2 run service_example service_client 10 20"
+  ]}
+/>
+
+<RosPackageExample
+  title="Action Example Package"
+  description="Demonstrates action server and client implementation using Fibonacci sequence"
+  packageName="action_example"
+  packagePath="/examples/ros2_packages/action_example"
+  runInstructions={[
+    "Terminal 1 - Start the action server:",
+    "ros2 run action_example fibonacci_action_server",
+    "",
+    "Terminal 2 - Run the action client:",
+    "ros2 run action_example fibonacci_action_client"
+  ]}
+/>
+
+## Exercises
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Exercise 1: Calculator Service</h4>
+  <p>Create a service that performs basic arithmetic operations (add, subtract, multiply, divide). The service should accept two numbers and an operation type, then return the result.</p>
+</div>
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Exercise 2: Navigation Action</h4>
+  <p>Create an action that simulates robot navigation to a goal pose. The action should provide feedback on distance to goal and can be canceled. Include proper error handling for unreachable goals.</p>
+</div>
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Exercise 3: Custom Service with Validation</h4>
+  <p>Create a custom service that validates user input (e.g., checking if an email address is valid). The service should return both the validation result and an error message if validation fails.</p>
+</div>
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Exercise 4: File Processing Action</h4>
+  <p>Create an action that simulates processing a file. The action should provide feedback on processing progress and can be canceled. The result should include the processed file information.</p>
+</div>

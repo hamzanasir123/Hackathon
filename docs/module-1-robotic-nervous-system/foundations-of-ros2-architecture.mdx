@@ -1,0 +1,482 @@
+---
+sidebar_label: "Foundations of ROS 2 – Architecture and Core Concepts"
+sidebar_position: 2
+title: "Foundations of ROS 2 – Architecture and Core Concepts"
+description: "Understanding the core architecture of ROS 2 and its fundamental concepts"
+---
+
+# Foundations of ROS 2 – Architecture and Core Concepts
+
+Welcome to the foundational chapter of ROS 2. In this chapter, we'll explore the core architecture of ROS 2, understand why it's essential for Physical AI, and examine its key components including nodes, topics, messages, parameters, and launch files.
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Explain the fundamental architecture of ROS 2
+- Identify and describe the core components of ROS 2
+- Understand the publish-subscribe communication pattern
+- Explain the purpose and usage of parameters in ROS 2
+- Understand how launch files orchestrate ROS 2 systems
+
+## Table of Contents
+
+1. [Introduction to ROS 2](#introduction-to-ros-2)
+2. [ROS 2 Architecture Overview](#ros-2-architecture-overview)
+3. [Nodes: The Building Blocks](#nodes-the-building-blocks)
+4. [Topics and Messages: Communication Channels](#topics-and-messages-communication-channels)
+5. [Services and Actions](#services-and-actions)
+6. [Parameters: Configuration Management](#parameters-configuration-management)
+7. [Launch Files: System Orchestration](#launch-files-system-orchestration)
+8. [Real-World Analogies](#real-world-analogies)
+9. [Chapter Summary](#chapter-summary)
+
+## Introduction to ROS 2
+
+Robot Operating System 2 (ROS 2) is not an operating system in the traditional sense, but rather a middleware framework that provides libraries and tools to help write robotic applications. Think of it as the "nervous system" of a robot, enabling different parts of the robot to communicate with each other efficiently.
+
+ROS 2 is essential for Physical AI because it:
+
+- Provides a standardized communication framework for robot components
+- Offers a rich ecosystem of tools and libraries
+- Enables rapid prototyping and development of robotic applications
+- Supports real-time and safety-critical applications (unlike ROS 1)
+- Provides better security and multi-robot systems support
+
+## ROS 2 Architecture Overview
+
+The architecture of ROS 2 is fundamentally different from ROS 1. While ROS 1 relied on a centralized master node, ROS 2 uses a distributed architecture based on DDS (Data Distribution Service).
+
+### DDS (Data Distribution Service)
+
+DDS is a middleware protocol that enables scalable, real-time, dependable, and high-performance data exchanges between devices. It forms the backbone of ROS 2's communication system.
+
+```python
+# Example of how DDS enables communication
+# In ROS 2, nodes communicate via DDS without needing a central master
+```
+
+### Core Architecture Components
+
+The main architectural components of ROS 2 include:
+
+1. **Nodes**: Individual processes that perform computation
+2. **Topics**: Named buses over which nodes exchange messages
+3. **Services**: Synchronous request/response communication
+4. **Actions**: Asynchronous goal/reward/cancel communication
+5. **Parameters**: Configuration values accessible to nodes
+6. **Launch Files**: Configuration files to start multiple nodes
+
+import RosArchitectureDiagram from '@site/src/components/RosArchitectureDiagram';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+
+<RosArchitectureDiagram variant="advanced" showLegend={true} />
+
+
+<ConceptExplainer
+  title="DDS in Real Life"
+  concept="DDS (Data Distribution Service) is a communication protocol that enables real-time, scalable, dependable, and high-performance data exchanges."
+  analogy="Think of DDS like a postal system that delivers packages (messages) between different locations (nodes) without needing a central post office (master). Each location can send and receive packages directly, with the system ensuring reliable delivery."
+  examples={[
+    "Publishers send messages to topics without knowing who will receive them",
+    "Subscribers receive messages from topics without knowing who sent them",
+    "DDS handles the routing and delivery automatically"
+  ]}
+  relatedConcepts={["Nodes", "Topics", "Messages"]}
+/>
+
+## Nodes: The Building Blocks
+
+A node is an executable that uses ROS 2 to communicate with other nodes. Nodes are the fundamental building blocks of a ROS 2 system.
+
+### Key Characteristics of Nodes:
+
+- Each node runs in its own process
+- Nodes can be written in different programming languages (Python, C++, etc.)
+- Nodes communicate with each other through topics, services, or actions
+- Nodes can be grouped into packages for better organization
+
+### Creating a Node
+
+```python
+# Example of a simple ROS 2 node in Python
+import rclpy
+from rclpy.node import Node
+
+class MinimalNode(Node):
+    def __init__(self):
+        super().__init__('minimal_node')
+        self.get_logger().info('Hello from minimal_node!')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MinimalNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+import CodeExample from '@site/src/components/CodeExample';
+
+<CodeExample
+  title="Minimal ROS 2 Node"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+
+class MinimalNode(Node):
+    def __init__(self):
+        super().__init__('minimal_node')
+        self.get_logger().info('Hello from minimal_node!')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MinimalNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="This is a minimal ROS 2 node implementation. The node inherits from the Node class, initializes logging, and runs until interrupted."
+/>
+
+## Topics and Messages: Communication Channels
+
+Topics enable asynchronous communication between nodes using a publish-subscribe pattern. Messages are the data structures sent over topics.
+
+### Publish-Subscribe Pattern
+
+- **Publisher**: A node that sends messages to a topic
+- **Subscriber**: A node that receives messages from a topic
+- **Topic**: A named channel for message exchange
+
+```python
+# Publisher example
+publisher = self.create_publisher(String, 'topic_name', 10)
+msg = String()
+msg.data = 'Hello World'
+publisher.publish(msg)
+```
+
+```python
+# Subscriber example
+def topic_callback(self, msg):
+    self.get_logger().info('Received: %s' % msg.data)
+
+subscription = self.create_subscription(
+    String, 'topic_name', topic_callback, 10)
+```
+
+<ConceptExplainer
+  title="Publish-Subscribe Pattern"
+  concept="The publish-subscribe pattern is a messaging pattern where senders (publishers) send messages without knowing who will receive them, and receivers (subscribers) receive messages without knowing who sent them."
+  analogy="Think of a newspaper system: journalists (publishers) write articles (messages) and send them to the newspaper (topic). Readers (subscribers) can read articles from the newspaper without knowing which journalist wrote each article."
+  examples={[
+    "A sensor node publishes data to a topic",
+    "Multiple processing nodes can subscribe to the same topic",
+    "The publisher doesn't need to know who is listening"
+  ]}
+  relatedConcepts={["Nodes", "Messages", "Topics"]}
+/>
+
+## Services and Actions
+
+While topics enable asynchronous communication, services and actions provide synchronous and goal-oriented communication respectively.
+
+### Services
+
+Services provide synchronous request/response communication:
+
+```python
+# Service Server
+from example_interfaces.srv import AddTwoInts
+
+def add_two_ints_callback(self, request, response):
+    response.sum = request.a + request.b
+    self.get_logger().info('Incoming request\na: %d, b: %d' % (request.a, request.b))
+    return response
+
+self.srv = self.create_service(AddTwoInts, 'add_two_ints', add_two_ints_callback)
+```
+
+### Actions
+
+Actions provide goal-oriented communication with feedback:
+
+```python
+# Action Server (simplified example)
+from rclpy.action import ActionServer
+from example_interfaces.action import Fibonacci
+
+class FibonacciActionServer(Node):
+    def __init__(self):
+        super().__init__('fibonacci_action_server')
+        self._action_server = ActionServer(
+            self,
+            Fibonacci,
+            'fibonacci',
+            self.execute_callback)
+```
+
+## Parameters: Configuration Management
+
+Parameters allow nodes to be configured at runtime. They are key-value pairs that can be set when launching nodes.
+
+```python
+# Declaring and using parameters
+self.declare_parameter('my_parameter', 'default_value')
+param_value = self.get_parameter('my_parameter').value
+```
+
+Parameters can be set via:
+
+- Command line arguments when running nodes
+- YAML configuration files
+- Launch files
+
+<ConceptExplainer
+  title="ROS 2 Parameters"
+  concept="Parameters are configuration values that can be accessed and modified by nodes at runtime."
+  analogy="Think of parameters like the settings on a radio: you can adjust the volume, frequency, or other settings without changing the radio's core functionality."
+  examples={[
+    "Setting the frequency of a sensor",
+    "Configuring the maximum speed of a motor",
+    "Defining the IP address of a network device"
+  ]}
+  relatedConcepts={["Nodes", "Launch Files"]}
+/>
+
+## Launch Files: System Orchestration
+
+Launch files allow you to start multiple nodes with a single command, making it easier to manage complex ROS 2 systems.
+
+```xml
+<!-- Example launch file -->
+<launch>
+  <node pkg="my_package" exec="node1" name="node1_name"/>
+  <node pkg="my_package" exec="node2" name="node2_name">
+    <param name="my_param" value="10"/>
+  </node>
+</launch>
+```
+
+```python
+# Python-based launch file
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package='my_package',
+            executable='node1',
+            name='node1_name'
+        ),
+        Node(
+            package='my_package',
+            executable='node2',
+            name='node2_name',
+            parameters=[
+                {'my_param': 10}
+            ]
+        )
+    ])
+```
+
+<CodeExample
+  title="Python Launch File"
+  language="python"
+  code={`from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package='my_package',
+            executable='node1',
+            name='node1_name'
+        ),
+        Node(
+            package='my_package',
+            executable='node2',
+            name='node2_name',
+            parameters=[
+                {'my_param': 10}
+            ]
+        )
+    ])`}
+  explanation="This launch file starts two nodes with specific names and parameters. The second node has a parameter called 'my_param' set to 10."
+/>
+
+<CodeExample
+  title="Parameter Declaration and Usage"
+  language="python"
+  code={`# Declaring and using parameters
+self.declare_parameter('my_parameter', 'default_value')
+param_value = self.get_parameter('my_parameter').value
+
+# Using parameters with different types
+self.declare_parameter('int_param', 42)
+self.declare_parameter('string_param', 'hello')
+self.declare_parameter('bool_param', True)`}
+  explanation="This code shows how to declare and use parameters of different types in a ROS 2 node. Parameters can be integers, strings, booleans, or other types."
+/>
+
+## Real-World Analogies
+
+Understanding ROS 2 concepts becomes easier when we relate them to real-world systems:
+
+### ROS 2 as a Company
+
+- **Nodes** are like departments in a company (HR, Finance, Engineering)
+- **Topics** are like company email channels where departments share information
+- **Services** are like formal requests between departments
+- **Parameters** are like company policies that everyone follows
+- **Launch files** are like the company's organizational chart that defines how everything should be set up
+
+### ROS 2 as a City
+
+- **Nodes** are like buildings or institutions (hospitals, schools, government offices)
+- **Topics** are like roads and highways for information flow
+- **Services** are like specific services you request (police, fire department)
+- **Parameters** are like city ordinances and regulations
+- **Launch files** are like city planning documents that define how the city should be organized
+
+## Chapter Summary
+
+In this chapter, we've covered the fundamental concepts of ROS 2:
+
+1. **Architecture**: ROS 2 uses a distributed architecture based on DDS
+2. **Nodes**: Individual processes that perform computation
+3. **Topics**: Asynchronous communication via publish-subscribe
+4. **Messages**: Data structures sent over topics
+5. **Services**: Synchronous request/response communication
+6. **Actions**: Goal-oriented communication with feedback
+7. **Parameters**: Configuration values accessible to nodes
+8. **Launch Files**: System orchestration tools
+
+Understanding these concepts is crucial for working with ROS 2, as they form the foundation for all robot applications built with this framework.
+
+## Exercises
+
+import RosPackageExample from '@site/src/components/RosPackageExample';
+
+### Exercise 1: Node Identification
+Look at the following robotic system description and identify the ROS 2 components needed:
+- A robot has a camera sensor that captures images
+- A processing node that detects objects in the images
+- A navigation node that plans paths
+- A motor control node that moves the robot
+
+**Questions:**
+1. What would be appropriate node names for each component?
+2. What topics would connect these nodes?
+3. What message types would be appropriate for the communication?
+
+### Exercise 2: Launch File Creation
+Create a launch file that starts the following nodes:
+- A sensor node publishing to `/sensor_data` topic
+- A processing node subscribing to `/sensor_data` and publishing to `/processed_data`
+- A controller node subscribing to `/processed_data`
+
+### Exercise 3: Parameter Configuration
+Design a parameter configuration for a mobile robot with the following requirements:
+- Maximum linear velocity: 0.5 m/s
+- Maximum angular velocity: 1.0 rad/s
+- Safety distance: 0.3 m
+- Robot type: "differential_drive"
+
+### Exercise 4: Conceptual Analysis
+Explain the differences between:
+1. Topics vs Services vs Actions
+2. DDS vs the ROS 1 master
+3. Parameters vs Messages
+
+## Comprehension Questions
+
+Test your understanding of the core concepts with these questions:
+
+1. **What is DDS and why is it important in ROS 2?**
+   - a) A debugging system for ROS 1
+   - b) Data Distribution Service, the middleware protocol that enables communication
+   - c) A development suite for robotics
+   - d) A data storage system
+
+2. **Which of the following best describes the publish-subscribe pattern in ROS 2?**
+   - a) Synchronous request-response communication
+   - b) Asynchronous communication where publishers send messages to topics without knowing subscribers
+   - c) Direct node-to-node communication
+   - d) Centralized communication through a master node
+
+3. **What is the main purpose of parameters in ROS 2?**
+   - a) To store large amounts of data
+   - b) To enable communication between nodes
+   - c) To provide configuration values accessible to nodes
+   - d) To define the structure of messages
+
+4. **How do launch files benefit ROS 2 development?**
+   - a) They provide debugging capabilities
+   - b) They allow you to start multiple nodes with a single command
+   - c) They store message definitions
+   - d) They create user interfaces
+
+5. **Which of the following is NOT a core component of ROS 2 architecture?**
+   - a) Nodes
+   - b) Topics
+   - c) Master node (like in ROS 1)
+   - d) Parameters
+
+<details>
+<summary>Click here for answers</summary>
+
+1. b) Data Distribution Service, the middleware protocol that enables communication
+2. b) Asynchronous communication where publishers send messages to topics without knowing subscribers
+3. c) To provide configuration values accessible to nodes
+4. b) They allow you to start multiple nodes with a single command
+5. c) Master node (like in ROS 1) - ROS 2 uses a distributed architecture without a central master
+
+</details>
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Hands-on Challenge</h4>
+  <p>Create a simple ROS 2 workspace with two nodes: one publisher and one subscriber. The publisher should send "Hello, ROS 2!" messages to a topic called "greetings", and the subscriber should print the received messages to the console.</p>
+
+  <p><strong>Requirements:</strong></p>
+  <ul>
+    <li>Create a new ROS 2 package called "hello_ros2"</li>
+    <li>Implement a publisher node that sends greetings every 2 seconds</li>
+    <li>Implement a subscriber node that receives and logs the greetings</li>
+    <li>Create a launch file to start both nodes</li>
+  </ul>
+</div>
+
+## References to Official ROS 2 Documentation
+
+For more detailed information about the concepts covered in this chapter, please refer to the official ROS 2 documentation:
+
+- [ROS 2 Concepts](https://docs.ros.org/en/humble/Concepts.html)
+- [ROS 2 Nodes](https://docs.ros.org/en/humble/Concepts/About-Nodes.html)
+- [ROS 2 Topics](https://docs.ros.org/en/humble/Concepts/About-Topics.html)
+- [ROS 2 Services](https://docs.ros.org/en/humble/Concepts/About-Services.html)
+- [ROS 2 Actions](https://docs.ros.org/en/humble/Concepts/About-Actions.html)
+- [ROS 2 Parameters](https://docs.ros.org/en/humble/How-To-Guides/Using-Parameters-In-A-Class-CPP.html)
+- [ROS 2 Launch Files](https://docs.ros.org/en/humble/Tutorials/Launch/Creating-Launch-Files.html)
+- [DDS in ROS 2](https://docs.ros.org/en/humble/Concepts/About-Different-Middleware-Vendors.html)
+
+All examples and explanations in this chapter align with the official ROS 2 Humble Hawksbill documentation and best practices.
+
+In the next chapter, we'll dive deeper into creating and working with ROS 2 nodes in Python, where you'll get hands-on experience implementing these concepts.

@@ -1,0 +1,92 @@
+.title {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 0.5rem;
+}
+
+.description {
+  font-size: 1.1rem;
+  color: #7f8c8d;
+  margin-bottom: 2rem;
+}
+
+.content {
+  margin-bottom: 2rem;
+}
+
+.sidebar {
+  background-color: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
+}
+
+.sidebarSection {
+  margin-bottom: 1.5rem;
+}
+
+.sidebarSection h3 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #2c3e50;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 0.25rem;
+}
+
+.objectivesList, .relatedList {
+  padding-left: 1.25rem;
+  margin-bottom: 0;
+}
+
+.objectiveItem, .relatedItem {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progressFill {
+  height: 100%;
+  width: 30%; /* This would be dynamic in a real implementation */
+  background-color: #3498db;
+  border-radius: 4px;
+}
+
+.navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.navLink {
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.navLink:hover {
+  background-color: #f8f9fa;
+  text-decoration: none;
+}
+
+.navLinkNext {
+  margin-left: auto;
+  text-align: right;
+}

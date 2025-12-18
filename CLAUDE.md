@@ -212,6 +212,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 ## Active Technologies
 - JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types (001-docusaurus-book-layout)
 - Static file storage (GitHub Pages), no database required (001-docusaurus-book-layout)
+- Markdown, Python 3.8+ (for ROS 2 examples), XML (for URDF) + Docusaurus v3+, React/MDX, ROS 2 (Humble Hawksbill or Iron Irwini), rclpy, URDF (002-ros2-module)
+- N/A (Educational content stored as markdown files) (002-ros2-module)
 
 ## Recent Changes
 - 001-docusaurus-book-layout: Added JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types

@@ -1,0 +1,595 @@
+---
+sidebar_label: "Creating Publishers and Subscribers"
+sidebar_position: 4
+title: "Creating Publishers and Subscribers"
+description: "Detailed tutorial on implementing publishers and subscribers in ROS 2 Python nodes"
+---
+
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import RosPackageExample from '@site/src/components/RosPackageExample';
+
+# Creating Publishers and Subscribers
+
+In this section, we'll dive deep into the publish-subscribe communication pattern in ROS 2. This is the most common form of communication between nodes, enabling asynchronous data exchange.
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+
+- Create publishers to send messages to topics
+- Create subscribers to receive messages from topics
+- Understand Quality of Service (QoS) settings
+- Implement custom message types
+- Design effective communication patterns
+
+## Table of Contents
+
+1. [Understanding Publishers and Subscribers](#understanding-publishers-and-subscribers)
+2. [Creating Publishers](#creating-publishers)
+3. [Creating Subscribers](#creating-subscribers)
+4. [Quality of Service (QoS) Settings](#quality-of-service-qos-settings)
+5. [Custom Message Types](#custom-message-types)
+6. [Best Practices](#best-practices)
+7. [Exercises](#exercises)
+
+## Understanding Publishers and Subscribers
+
+The publish-subscribe pattern is fundamental to ROS 2 communication. It allows for loose coupling between nodes:
+
+- **Publishers** send messages to topics without knowing who will receive them
+- **Subscribers** receive messages from topics without knowing who sent them
+- **Topics** serve as named channels for message exchange
+
+<ConceptExplainer
+  title="Publish-Subscribe Pattern"
+  concept="The publish-subscribe pattern is a messaging pattern where senders (publishers) send messages without knowing who will receive them, and receivers (subscribers) receive messages without knowing who sent them."
+  analogy="Think of a radio station (publisher) broadcasting music to multiple listeners (subscribers). The station doesn't know who's listening, and listeners don't need to contact the station directly to receive the broadcast."
+  examples={[
+    "A sensor node publishing data to a topic",
+    "Multiple processing nodes subscribing to the same sensor data",
+    "A visualization node subscribing to robot pose information"
+  ]}
+  relatedConcepts={["Nodes", "Topics", "Messages"]}
+/>
+
+## Creating Publishers
+
+To create a publisher in a ROS 2 Python node, use the `create_publisher()` method:
+
+```python
+publisher = self.create_publisher(MessageType, 'topic_name', qos_profile_or_depth)
+```
+
+### Basic Publisher Example
+
+<CodeExample
+  title="Basic Publisher Implementation"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class PublisherNode(Node):
+    def __init__(self):
+        super().__init__('publisher_node')
+
+        # Create a publisher with a queue size of 10
+        self.publisher = self.create_publisher(String, 'chatter', 10)
+
+        # Create a timer to publish messages periodically
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+
+        self.counter = 0
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = f'Hello, ROS 2! Count: {self.counter}'
+
+        # Publish the message
+        self.publisher.publish(msg)
+
+        # Log the published message
+        self.get_logger().info(f'Publishing: "{msg.data}"')
+        self.counter += 1
+
+def main(args=None):
+    rclpy.init(args=args)
+    publisher_node = PublisherNode()
+
+    try:
+        rclpy.spin(publisher_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        publisher_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A basic publisher node that sends string messages to the 'chatter' topic every 0.5 seconds. The publisher has a queue size of 10 messages."
+/>
+
+### Publisher with Different Message Types
+
+Publishers can send various message types. Here are examples with common types:
+
+<CodeExample
+  title="Publisher with Different Message Types"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String, Int32, Float64
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
+
+class MultiPublisherNode(Node):
+    def __init__(self):
+        super().__init__('multi_publisher_node')
+
+        # String publisher
+        self.string_publisher = self.create_publisher(String, 'string_topic', 10)
+
+        # Integer publisher
+        self.int_publisher = self.create_publisher(Int32, 'int_topic', 10)
+
+        # Float publisher
+        self.float_publisher = self.create_publisher(Float64, 'float_topic', 10)
+
+        # Twist (velocity) publisher
+        self.velocity_publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        # Timer to send all messages
+        self.timer = self.create_timer(1.0, self.publish_all)
+
+        self.counter = 0
+
+    def publish_all(self):
+        # Publish string message
+        string_msg = String()
+        string_msg.data = f'Message {self.counter}'
+        self.string_publisher.publish(string_msg)
+
+        # Publish integer message
+        int_msg = Int32()
+        int_msg.data = self.counter
+        self.int_publisher.publish(int_msg)
+
+        # Publish float message
+        float_msg = Float64()
+        float_msg.data = float(self.counter) * 1.5
+        self.float_publisher.publish(float_msg)
+
+        # Publish velocity command
+        twist_msg = Twist()
+        twist_msg.linear.x = 0.5  # Move forward at 0.5 m/s
+        twist_msg.angular.z = 0.2  # Rotate at 0.2 rad/s
+        self.velocity_publisher.publish(twist_msg)
+
+        self.get_logger().info(f'Published messages, counter: {self.counter}')
+        self.counter += 1
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MultiPublisherNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A publisher node that sends different types of messages to various topics. This demonstrates how to work with different standard message types in ROS 2."
+/>
+
+## Creating Subscribers
+
+To create a subscriber in a ROS 2 Python node, use the `create_subscription()` method:
+
+```python
+subscription = self.create_subscription(
+    MessageType,
+    'topic_name',
+    callback_function,
+    qos_profile_or_depth
+)
+```
+
+### Basic Subscriber Example
+
+<CodeExample
+  title="Basic Subscriber Implementation"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class SubscriberNode(Node):
+    def __init__(self):
+        super().__init__('subscriber_node')
+
+        # Create a subscriber for the 'chatter' topic
+        self.subscription = self.create_subscription(
+            String,
+            'chatter',
+            self.listener_callback,
+            10  # queue size
+        )
+
+        # Prevent unused variable warning
+        self.subscription
+
+    def listener_callback(self, msg):
+        # Process the received message
+        self.get_logger().info(f'I heard: "{msg.data}"')
+
+def main(args=None):
+    rclpy.init(args=args)
+    subscriber_node = SubscriberNode()
+
+    try:
+        rclpy.spin(subscriber_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        subscriber_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A basic subscriber node that listens to the 'chatter' topic and logs received messages. The subscriber has a queue size of 10 messages."
+/>
+
+### Multiple Subscribers in One Node
+
+<CodeExample
+  title="Node with Multiple Subscribers"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String, Int32, Float64
+from geometry_msgs.msg import Twist
+
+class MultiSubscriberNode(Node):
+    def __init__(self):
+        super().__init__('multi_subscriber_node')
+
+        # Create multiple subscriptions
+        self.string_sub = self.create_subscription(
+            String, 'string_topic', self.string_callback, 10)
+
+        self.int_sub = self.create_subscription(
+            Int32, 'int_topic', self.int_callback, 10)
+
+        self.float_sub = self.create_subscription(
+            Float64, 'float_topic', self.float_callback, 10)
+
+        self.velocity_sub = self.create_subscription(
+            Twist, 'cmd_vel', self.velocity_callback, 10)
+
+        # Store received data
+        self.received_data = {}
+
+    def string_callback(self, msg):
+        self.received_data['string'] = msg.data
+        self.get_logger().info(f'String: {msg.data}')
+
+    def int_callback(self, msg):
+        self.received_data['int'] = msg.data
+        self.get_logger().info(f'Integer: {msg.data}')
+
+    def float_callback(self, msg):
+        self.received_data['float'] = msg.data
+        self.get_logger().info(f'Float: {msg.data}')
+
+    def velocity_callback(self, msg):
+        self.received_data['velocity'] = (msg.linear.x, msg.angular.z)
+        self.get_logger().info(f'Velocity: linear={msg.linear.x}, angular={msg.angular.z}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MultiSubscriberNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A subscriber node that listens to multiple topics and processes different message types. Each topic has its own callback function."
+/>
+
+## Quality of Service (QoS) Settings
+
+QoS settings determine how messages are handled in terms of reliability, durability, and history. Here are common configurations:
+
+<CodeExample
+  title="QoS Settings Examples"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
+
+class QoSPublisherNode(Node):
+    def __init__(self):
+        super().__init__('qos_publisher_node')
+
+        # Default QoS profile (reliable, keep last 10)
+        self.default_pub = self.create_publisher(String, 'default_topic', 10)
+
+        # Reliable with keep all history
+        qos_reliable_all = QoSProfile(
+            depth=0,  # Keep all messages
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL
+        )
+        self.reliable_all_pub = self.create_publisher(String, 'reliable_all_topic', qos_reliable_all)
+
+        # Best effort with keep last 1
+        qos_best_effort = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_LAST
+        )
+        self.best_effort_pub = self.create_publisher(String, 'best_effort_topic', qos_best_effort)
+
+        # Timer to publish messages
+        self.timer = self.create_timer(1.0, self.publish_messages)
+        self.counter = 0
+
+    def publish_messages(self):
+        msg = String()
+        msg.data = f'Message {self.counter}'
+
+        self.default_pub.publish(msg)
+        self.reliable_all_pub.publish(msg)
+        self.best_effort_pub.publish(msg)
+
+        self.get_logger().info(f'Published message {self.counter}')
+        self.counter += 1
+
+class QoSSubscriberNode(Node):
+    def __init__(self):
+        super().__init__('qos_subscriber_node')
+
+        # Matching QoS profiles for subscribers
+        qos_reliable_all = QoSProfile(
+            depth=0,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL
+        )
+
+        qos_best_effort = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_LAST
+        )
+
+        self.default_sub = self.create_subscription(String, 'default_topic',
+                                                   self.default_callback, 10)
+        self.reliable_all_sub = self.create_subscription(String, 'reliable_all_topic',
+                                                        self.reliable_all_callback, qos_reliable_all)
+        self.best_effort_sub = self.create_subscription(String, 'best_effort_topic',
+                                                       self.best_effort_callback, qos_best_effort)
+
+    def default_callback(self, msg):
+        self.get_logger().info(f'Default: {msg.data}')
+
+    def reliable_all_callback(self, msg):
+        self.get_logger().info(f'Reliable All: {msg.data}')
+
+    def best_effort_callback(self, msg):
+        self.get_logger().info(f'Best Effort: {msg.data}')
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    # For this example, you would typically run publisher and subscriber in separate processes
+    node = QoSPublisherNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="Examples of different QoS profiles for publishers and subscribers. QoS settings ensure reliable communication based on the requirements of your application."
+/>
+
+## Custom Message Types
+
+While standard message types are useful, you may need to define custom messages for your specific application:
+
+### Creating a Custom Message
+
+First, create a `.msg` file in your package's `msg/` directory:
+
+```
+# MyCustomMessage.msg
+string name
+int32 id
+float64 value
+bool is_valid
+```
+
+Then use it in your Python code:
+
+<CodeExample
+  title="Using Custom Messages"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from my_package.msg import MyCustomMessage  # Import your custom message
+
+class CustomMessageNode(Node):
+    def __init__(self):
+        super().__init__('custom_message_node')
+
+        # Create publisher for custom message
+        self.publisher = self.create_publisher(MyCustomMessage, 'custom_topic', 10)
+
+        # Create subscriber for custom message
+        self.subscription = self.create_subscription(
+            MyCustomMessage,
+            'custom_topic',
+            self.custom_callback,
+            10
+        )
+
+        # Timer to send custom messages
+        self.timer = self.create_timer(2.0, self.send_custom_message)
+        self.counter = 0
+
+    def send_custom_message(self):
+        msg = MyCustomMessage()
+        msg.name = f'Robot_{self.counter}'
+        msg.id = self.counter
+        msg.value = float(self.counter) * 1.5
+        msg.is_valid = True
+
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Sent custom message: {msg.name}, ID: {msg.id}')
+        self.counter += 1
+
+    def custom_callback(self, msg):
+        self.get_logger().info(f'Received custom message: {msg.name}, ID: {msg.id}, Value: {msg.value}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = CustomMessageNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="Example of using a custom message type. Custom messages are defined in .msg files and allow you to create data structures specific to your application."
+/>
+
+## Best Practices
+
+When working with publishers and subscribers, consider these best practices:
+
+1. **Choose appropriate QoS settings** based on your application's requirements
+2. **Use meaningful topic names** that clearly indicate the purpose
+3. **Set appropriate queue sizes** to balance memory usage and message delivery
+4. **Handle message timestamps** when timing is critical
+5. **Implement proper error handling** for robust operation
+
+### Example: Robust Publisher with Error Handling
+
+<CodeExample
+  title="Robust Publisher with Error Handling"
+  language="python"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+
+class RobustPublisherNode(Node):
+    def __init__(self):
+        super().__init__('robust_publisher')
+
+        # Create publisher with reliable QoS
+        qos_profile = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE)
+        self.publisher = self.create_publisher(String, 'robust_topic', qos_profile)
+
+        # Timer for publishing
+        self.timer = self.create_timer(1.0, self.safe_publish)
+        self.counter = 0
+
+    def safe_publish(self):
+        try:
+            msg = String()
+            msg.data = f'Safe message {self.counter}'
+
+            # Check if publisher is active before publishing
+            if self.publisher.get_subscription_count() > 0:
+                self.publisher.publish(msg)
+                self.get_logger().info(f'Published: {msg.data}')
+            else:
+                self.get_logger().warn('No subscribers for this topic')
+
+            self.counter += 1
+        except Exception as e:
+            self.get_logger().error(f'Error in publishing: {e}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = RobustPublisherNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        node.get_logger().info('Shutting down gracefully...')
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A publisher with error handling and checks for active subscribers. This approach makes the node more robust in real-world scenarios."
+/>
+
+## Running the Examples
+
+We've created a complete example package that demonstrates publishers and subscribers. You can find it in the examples/ros2_packages directory:
+
+<RosPackageExample
+  title="Publisher-Subscriber Example Package"
+  description="Demonstrates basic publisher and subscriber nodes with topic communication"
+  packageName="publisher_subscriber_example"
+  packagePath="/examples/ros2_packages/publisher_subscriber_example"
+  runInstructions={[
+    "Terminal 1 - Start the publisher:",
+    "ros2 run publisher_subscriber_example publisher_member_function",
+    "",
+    "Terminal 2 - Start the subscriber:",
+    "ros2 run publisher_subscriber_example subscriber_member_function"
+  ]}
+/>
+
+## Exercises
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Exercise 1: Temperature Publisher</h4>
+  <p>Create a publisher node that simulates a temperature sensor. The node should publish temperature readings (as Float64 messages) to a topic called 'temperature' every 2 seconds. The temperature should vary randomly between 18°C and 25°C.</p>
+</div>
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Exercise 2: Data Aggregator</h4>
+  <p>Create a subscriber node that listens to multiple topics (e.g., 'temperature', 'humidity', 'pressure') and aggregates the data. When it receives messages from all topics, it should log a combined reading.</p>
+</div>
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Exercise 3: Custom Message Publisher</h4>
+  <p>Create a custom message type for a robot's status (e.g., with fields for battery level, current task, and error status). Then create a publisher that sends status updates every 5 seconds.</p>
+</div>
+
+<div className="exercise-container">
+  <h4 className="exercise-title">Exercise 4: QoS Comparison</h4>
+  <p>Implement the same publisher-subscriber pair with different QoS profiles (reliable vs best effort) and observe the differences in message delivery under various network conditions.</p>
+</div>

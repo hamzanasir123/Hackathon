@@ -49,6 +49,12 @@ const config = {
     ],
   ],
 
+  stylesheets: [
+    {
+      href: '/css/educational-content.css',
+      type: 'text/css',
+    },
+  ],
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({

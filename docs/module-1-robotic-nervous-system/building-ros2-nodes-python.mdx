@@ -1,0 +1,566 @@
+---
+sidebar_label: "Building and Communicating with ROS 2 Nodes in Python"
+sidebar_position: 3
+title: "Building and Communicating with ROS 2 Nodes in Python"
+description: "Hands-on tutorials for creating ROS 2 nodes using Python and rclpy"
+---
+
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import RosPackageExample from '@site/src/components/RosPackageExample';
+
+# Building and Communicating with ROS 2 Nodes in Python
+
+In this chapter, we'll dive deep into creating ROS 2 nodes using Python and the `rclpy` library. You'll learn how to create publishers, subscribers, services, and actions, and how to build complete ROS 2 packages.
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Create ROS 2 nodes using Python and rclpy
+- Implement publishers and subscribers for message passing
+- Create services for synchronous communication
+- Build actions for goal-oriented communication
+- Package and build ROS 2 Python packages
+
+## Table of Contents
+
+1. [Introduction to rclpy](#introduction-to-rclpy)
+2. [Creating Your First ROS 2 Node in Python](#creating-your-first-ros-2-node-in-python)
+3. [Publishers and Subscribers](#publishers-and-subscribers)
+4. [Services in Python](#services-in-python)
+5. [Actions in Python](#actions-in-python)
+6. [Building ROS 2 Python Packages](#building-ros-2-python-packages)
+7. [Chapter Summary](#chapter-summary)
+
+## Introduction to rclpy
+
+`rclpy` is the Python client library for ROS 2. It provides the Python API for developing ROS 2 applications, allowing you to create nodes, publish and subscribe to topics, provide and use services, and more.
+
+### Key Components of rclpy
+
+- `Node`: The base class for creating ROS 2 nodes
+- `Publisher`: For publishing messages to topics
+- `Subscription`: For subscribing to topics
+- `Service`: For providing services
+- `Client`: For using services
+- `Timer`: For periodic callbacks
+- `Parameter`: For parameter handling
+
+<ConceptExplainer
+  title="rclpy in Real Life"
+  concept="rclpy is the Python client library for ROS 2 that provides the API for creating nodes and communication."
+  analogy="Think of rclpy like a toolkit for communication: just as you might use different tools (phones, email, letters) to communicate in different ways, rclpy provides different tools (publishers, subscribers, services) to enable different types of communication between robot components."
+  examples={[
+    "Creating a node that reads sensor data",
+    "Publishing sensor data to other nodes",
+    "Subscribing to control commands",
+    "Providing services for specific requests"
+  ]}
+  relatedConcepts={["Nodes", "Topics", "Services", "Actions"]}
+/>
+
+## Creating Your First ROS 2 Node in Python
+
+Let's start by creating a minimal ROS 2 node in Python:
+
+```python
+# minimal_publisher.py
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalPublisher(Node):
+    def __init__(self):
+        super().__init__('minimal_publisher')
+        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.i = 0
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = 'Hello World: %d' % self.i
+        self.publisher_.publish(msg)
+        self.get_logger().info('Publishing: "%s"' % msg.data)
+        self.i += 1
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_publisher = MinimalPublisher()
+
+    try:
+        rclpy.spin(minimal_publisher)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        minimal_publisher.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+<CodeExample
+  title="Minimal Publisher Node"
+  language="python"
+  code={`# minimal_publisher.py
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalPublisher(Node):
+    def __init__(self):
+        super().__init__('minimal_publisher')
+        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.i = 0
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = 'Hello World: %d' % self.i
+        self.publisher_.publish(msg)
+        self.get_logger().info('Publishing: "%s"' % msg.data)
+        self.i += 1
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_publisher = MinimalPublisher()
+
+    try:
+        rclpy.spin(minimal_publisher)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        minimal_publisher.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="This is a minimal publisher node that publishes a string message every 0.5 seconds. The node creates a publisher for the 'topic' topic, sets up a timer callback, and publishes incrementing messages."
+/>
+
+## Publishers and Subscribers
+
+### Creating a Publisher
+
+A publisher sends messages to a topic. Here's how to create one:
+
+```python
+# Creating a publisher in a node
+publisher = self.create_publisher(MessageType, 'topic_name', qos_profile)
+```
+
+### Creating a Subscriber
+
+A subscriber receives messages from a topic:
+
+```python
+# Creating a subscriber in a node
+subscription = self.create_subscription(
+    MessageType,
+    'topic_name',
+    callback_function,
+    qos_profile
+)
+```
+
+### Complete Publisher-Subscriber Example
+
+Let's create a publisher and subscriber pair:
+
+<CodeExample
+  title="Publisher Node"
+  language="python"
+  code={`# publisher_member_function.py
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalPublisher(Node):
+    def __init__(self):
+        super().__init__('minimal_publisher')
+        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.i = 0
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = 'Hello World: %d' % self.i
+        self.publisher_.publish(msg)
+        self.get_logger().info('Publishing: "%s"' % msg.data)
+        self.i += 1
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_publisher = MinimalPublisher()
+
+    try:
+        rclpy.spin(minimal_publisher)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        minimal_publisher.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A publisher node that sends messages to the 'topic' topic every 0.5 seconds."
+/>
+
+<CodeExample
+  title="Subscriber Node"
+  language="python"
+  code={`# subscriber_member_function.py
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalSubscriber(Node):
+    def __init__(self):
+        super().__init__('minimal_subscriber')
+        self.subscription = self.create_subscription(
+            String,
+            'topic',
+            self.listener_callback,
+            10)
+        self.subscription  # prevent unused variable warning
+
+    def listener_callback(self, msg):
+        self.get_logger().info('I heard: "%s"' % msg.data)
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_subscriber = MinimalSubscriber()
+
+    try:
+        rclpy.spin(minimal_subscriber)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        minimal_subscriber.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A subscriber node that listens to the 'topic' topic and logs received messages."
+/>
+
+## Services in Python
+
+Services provide synchronous request/response communication. Here's how to create them:
+
+For a detailed tutorial on implementing services, see our [Implementing Services and Actions](./implementing-services-actions) guide.
+
+### Service Server
+
+<CodeExample
+  title="Service Server"
+  language="python"
+  code={`# service_member_function.py
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class MinimalService(Node):
+    def __init__(self):
+        super().__init__('minimal_service')
+        self.srv = self.create_service(AddTwoInts, 'add_two_ints', self.add_two_ints_callback)
+
+    def add_two_ints_callback(self, request, response):
+        response.sum = request.a + request.b
+        self.get_logger().info('Incoming request\na: %d b: %d' % (request.a, request.b))
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_service = MinimalService()
+
+    try:
+        rclpy.spin(minimal_service)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        minimal_service.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A service server that adds two integers. When a request is received, it calculates the sum and returns it in the response."
+/>
+
+### Service Client
+
+<CodeExample
+  title="Service Client"
+  language="python"
+  code={`# client_member_function.py
+import sys
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class MinimalClientAsync(Node):
+    def __init__(self):
+        super().__init__('minimal_client_async')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('service not available, waiting again...')
+        self.req = AddTwoInts.Request()
+
+    def send_request(self, a, b):
+        self.req.a = a
+        self.req.b = b
+        self.future = self.cli.call_async(self.req)
+        rclpy.spin_until_future_complete(self, self.future)
+        return self.future.result()
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_client = MinimalClientAsync()
+    response = minimal_client.send_request(int(sys.argv[1]), int(sys.argv[2]))
+    minimal_client.get_logger().info(
+        'Result of add_two_ints: for %d + %d = %d' %
+        (int(sys.argv[1]), int(sys.argv[2]), response.sum))
+    minimal_client.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="A service client that sends a request to the add_two_ints service and waits for the response."
+/>
+
+## Actions in Python
+
+Actions provide goal-oriented communication with feedback. Here's a basic example:
+
+For a detailed tutorial on implementing actions, see our [Implementing Services and Actions](./implementing-services-actions) guide.
+
+<CodeExample
+  title="Action Server"
+  language="python"
+  code={`# action_server.py
+import time
+import rclpy
+from rclpy.action import ActionServer, CancelResponse, GoalResponse
+from rclpy.node import Node
+from example_interfaces.action import Fibonacci
+
+class FibonacciActionServer(Node):
+    def __init__(self):
+        super().__init__('fibonacci_action_server')
+        self._action_server = ActionServer(
+            self,
+            Fibonacci,
+            'fibonacci',
+            execute_callback=self.execute_callback,
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup(),
+            goal_callback=self.goal_callback,
+            cancel_callback=self.cancel_callback)
+
+    def destroy(self):
+        self._action_server.destroy()
+        super().destroy_node()
+
+    def goal_callback(self, goal_request):
+        self.get_logger().info('Received goal request: %d' % (goal_request.order))
+        return GoalResponse.ACCEPT
+
+    def cancel_callback(self, goal_handle):
+        self.get_logger().info('Received cancel request')
+        return CancelResponse.ACCEPT
+
+    def execute_callback(self, goal_handle):
+        self.get_logger().info('Executing goal...')
+
+        feedback_msg = Fibonacci.Feedback()
+        feedback_msg.sequence = [0, 1]
+
+        for i in range(1, goal_handle.request.order):
+            if goal_handle.is_cancel_requested:
+                goal_handle.canceled()
+                self.get_logger().info('Goal canceled')
+                return Fibonacci.Result()
+
+            feedback_msg.sequence.append(
+                feedback_msg.sequence[i] + feedback_msg.sequence[i-1])
+
+            goal_handle.publish_feedback(feedback_msg)
+            time.sleep(1)
+
+        goal_handle.succeed()
+        result = Fibonacci.Result()
+        result.sequence = feedback_msg.sequence
+        self.get_logger().info('Returning result: {0}'.format(result.sequence))
+        return result
+
+def main(args=None):
+    rclpy.init(args=args)
+    fibonacci_action_server = FibonacciActionServer()
+
+    try:
+        rclpy.spin(fibonacci_action_server)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        fibonacci_action_server.destroy()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+  explanation="An action server that generates a Fibonacci sequence. It provides feedback during execution and can be canceled."
+/>
+
+## Building ROS 2 Python Packages
+
+To create a complete ROS 2 package with Python nodes, you need several files:
+
+For a complete step-by-step tutorial on building ROS 2 packages, see our [Package Building Tutorial](./package-building-tutorial) guide.
+
+We've created several complete example packages that demonstrate different ROS 2 concepts. You can find them in the examples/ros2_packages directory:
+
+<RosPackageExample
+  title="Publisher-Subscriber Example Package"
+  description="Demonstrates basic publisher and subscriber nodes with topic communication"
+  packageName="publisher_subscriber_example"
+  packagePath="/examples/ros2_packages/publisher_subscriber_example"
+  runInstructions={[
+    "Terminal 1 - Start the publisher:",
+    "ros2 run publisher_subscriber_example publisher_member_function",
+    "",
+    "Terminal 2 - Start the subscriber:",
+    "ros2 run publisher_subscriber_example subscriber_member_function"
+  ]}
+/>
+
+<RosPackageExample
+  title="Service Example Package"
+  description="Demonstrates service server and client implementation"
+  packageName="service_example"
+  packagePath="/examples/ros2_packages/service_example"
+  runInstructions={[
+    "Terminal 1 - Start the service server:",
+    "ros2 run service_example service_server",
+    "",
+    "Terminal 2 - Run the service client:",
+    "ros2 run service_example service_client 10 20"
+  ]}
+/>
+
+<RosPackageExample
+  title="Action Example Package"
+  description="Demonstrates action server and client implementation using Fibonacci sequence"
+  packageName="action_example"
+  packagePath="/examples/ros2_packages/action_example"
+  runInstructions={[
+    "Terminal 1 - Start the action server:",
+    "ros2 run action_example fibonacci_action_server",
+    "",
+    "Terminal 2 - Run the action client:",
+    "ros2 run action_example fibonacci_action_client"
+  ]}
+/>
+
+### package.xml
+
+```xml
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>tutorial_py</name>
+  <version>0.0.0</version>
+  <description>Tutorials for using Python with ROS 2</description>
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>Apache License 2.0</license>
+
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>example_interfaces</depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
+```
+
+### setup.py
+
+```python
+from setuptools import setup
+import os
+from glob import glob
+
+package_name = 'tutorial_py'
+
+setup(
+    name=package_name,
+    version='0.0.0',
+    packages=[package_name],
+    data_files=[
+        ('share/ament_index/resource_index/packages',
+            ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
+    ],
+    install_requires=['setuptools'],
+    zip_safe=True,
+    maintainer='Your Name',
+    maintainer_email='you@example.com',
+    description='Tutorials for using Python with ROS 2',
+    license='Apache License 2.0',
+    tests_require=['pytest'],
+    entry_points={
+        'console_scripts': [
+            'minimal_publisher = tutorial_py.publisher_member_function:main',
+            'minimal_subscriber = tutorial_py.subscriber_member_function:main',
+            'minimal_service = tutorial_py.service_member_function:main',
+            'minimal_client = tutorial_py.client_member_function:main',
+        ],
+    },
+)
+```
+
+### Building the Package
+
+To build your ROS 2 package:
+
+```bash
+# In your workspace directory
+colcon build --packages-select tutorial_py
+source install/setup.bash
+```
+
+### Running the Nodes
+
+After building, you can run your nodes:
+
+```bash
+# Run the publisher
+ros2 run tutorial_py minimal_publisher
+
+# Run the subscriber in another terminal
+ros2 run tutorial_py minimal_subscriber
+```
+
+## Chapter Summary
+
+In this chapter, we've covered how to create ROS 2 nodes in Python:
+
+1. **rclpy**: The Python client library for ROS 2
+2. **Nodes**: Creating nodes that inherit from the Node class
+3. **Publishers**: Sending messages to topics
+4. **Subscribers**: Receiving messages from topics
+5. **Services**: Providing synchronous request/response communication
+6. **Actions**: Goal-oriented communication with feedback
+7. **Packages**: Structuring and building complete ROS 2 packages
+
+These concepts form the core of ROS 2 development in Python. With these tools, you can create complex robotic applications that communicate effectively.
+
+In the next chapter, we'll explore how to describe robots using URDF (Unified Robot Description Format).

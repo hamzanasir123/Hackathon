@@ -1,0 +1,164 @@
+.container {
+  margin: 1.5rem 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.title {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background-color: #f5f5f5;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.codeContainer {
+  position: relative;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.875rem;
+}
+
+.language {
+  font-weight: 500;
+  color: #666;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.copyButton, .executeButton {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.copyButton:hover, .executeButton:hover {
+  background-color: #e9ecef;
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+.codeLine {
+  display: flex;
+}
+
+.lineNumber {
+  user-select: none;
+  margin-right: 1rem;
+  color: #858585;
+  text-align: right;
+  min-width: 2rem;
+  display: inline-block;
+  opacity: 0.7;
+}
+
+.highlightedLine {
+  background-color: rgba(255, 255, 0, 0.1);
+}
+
+.lineContent {
+  flex: 1;
+}
+
+/* Syntax highlighting for Python */
+.language-python .token.comment {
+  color: #6a9955;
+}
+
+.language-python .token.string {
+  color: #ce9178;
+}
+
+.language-python .token.number {
+  color: #b5cea8;
+}
+
+.language-python .token.keyword {
+  color: #569cd6;
+}
+
+.language-python .token.function {
+  color: #dcdcaa;
+}
+
+.language-python .token.operator {
+  color: #d4d4d4;
+}
+
+/* Syntax highlighting for XML */
+.language-xml .token.tag {
+  color: #569cd6;
+}
+
+.language-xml .token.attr-name {
+  color: #9cdcfe;
+}
+
+.language-xml .token.attr-value {
+  color: #ce9178;
+}
+
+.language-xml .token.punctuation {
+  color: #808080;
+}
+
+.explanation {
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-top: 1px solid #e0e0e0;
+}
+
+.explanation h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.output {
+  padding: 1rem;
+  background-color: #f0f0f0;
+  border-top: 1px solid #e0e0e0;
+}
+
+.output h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.outputContent {
+  margin: 0;
+  padding: 0.5rem;
+  background-color: #000;
+  color: #0f0;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  overflow-x: auto;
+}

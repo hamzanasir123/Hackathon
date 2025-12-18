@@ -18,7 +18,12 @@ const sidebars = {
       collapsed: false,
       items: [
         'module-1-robotic-nervous-system/index',
-        'module-1-robotic-nervous-system/introduction-to-ros2-architecture',
+        'module-1-robotic-nervous-system/foundations-of-ros2-architecture',
+        'module-1-robotic-nervous-system/building-ros2-nodes-python',
+        'module-1-robotic-nervous-system/creating-publishers-subscribers',
+        'module-1-robotic-nervous-system/implementing-services-actions',
+        'module-1-robotic-nervous-system/package-building-tutorial',
+        'module-1-robotic-nervous-system/describing-humanoid-robots-with-urdf',
       ],
     },
     {
