@@ -4,10 +4,10 @@
   "description": "Physical AI & Humanoid Robotics course book",
   "main": "index.js",
   "scripts": {
+    "build": "DOCUSAURUS_MINIFY_HTML=false docusaurus build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "docusaurus": "docusaurus",
     "start": "docusaurus start",
-    "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
