@@ -214,6 +214,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 - Static file storage (GitHub Pages), no database required (001-docusaurus-book-layout)
 - Markdown, Python 3.8+ (for ROS 2 examples), XML (for URDF) + Docusaurus v3+, React/MDX, ROS 2 (Humble Hawksbill or Iron Irwini), rclpy, URDF (002-ros2-module)
 - N/A (Educational content stored as markdown files) (002-ros2-module)
+- Markdown, Python 3.10+, XML/YAML configuration files + Docusaurus v3+, React/MDX, ROS 2 (Humble/Iron), Gazebo Harmonic, Unity (for simulation examples) (001-digital-twin-gazebo-unity)
+- JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types + Docusaurus v3+, React, MDX, @docusaurus/module-type-aliases, @docusaurus/types, NVIDIA Isaac Sim, Isaac ROS 3.x, Nav2 (003-isaac-platform)
 
 ## Recent Changes
 - 001-docusaurus-book-layout: Added JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types

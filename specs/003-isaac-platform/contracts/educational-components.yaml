@@ -1,0 +1,281 @@
+# API Contract: Educational Components for Isaac Platform Module
+
+openapi: 3.0.0
+info:
+  title: Educational Components API for Isaac Platform Module
+  description: Defines the structure and interfaces for educational components used in Module 3 - The AI-Robot Brain (NVIDIA Isaac™)
+  version: 1.0.0
+
+paths: {}
+
+components:
+  schemas:
+    ChapterLayout:
+      type: object
+      description: Layout component for educational chapter pages
+      properties:
+        children:
+          type: string
+          description: Child content to be rendered in the layout
+        title:
+          type: string
+          description: Chapter title
+        description:
+          type: string
+          description: Chapter description
+        previous:
+          $ref: '#/components/schemas/NavigationLink'
+        next:
+          $ref: '#/components/schemas/NavigationLink'
+      required:
+        - children
+        - title
+        - description
+
+    NavigationLink:
+      type: object
+      description: Navigation link structure
+      properties:
+        path:
+          type: string
+          description: Path to the linked page
+        title:
+          type: string
+          description: Title of the linked page
+      required:
+        - path
+        - title
+
+    CodeExample:
+      type: object
+      description: Component for displaying code examples with syntax highlighting
+      properties:
+        language:
+          type: string
+          description: Programming language for syntax highlighting
+          enum: [python, xml, yaml, usd, bash, csharp]
+        title:
+          type: string
+          description: Title for the code example
+        description:
+          type: string
+          description: Description of what the code demonstrates
+        code:
+          type: string
+          description: The actual code content
+        showControls:
+          type: boolean
+          description: Whether to show copy/run controls
+          default: true
+      required:
+        - language
+        - code
+
+    ConceptExplainer:
+      type: object
+      description: Component for explaining concepts with analogies and examples
+      properties:
+        concept:
+          type: string
+          description: Name of the concept being explained
+        analogy:
+          type: string
+          description: Real-world analogy for the concept
+        description:
+          type: string
+          description: Detailed explanation of the concept
+        examples:
+          type: array
+          items:
+            type: string
+          description: Specific examples of the concept
+        relatedConcepts:
+          type: array
+          items:
+            type: string
+          description: Related concepts to the main concept
+        children:
+          type: string
+          description: Additional content within the explainer
+      required:
+        - concept
+        - description
+
+    ArchitectureDiagram:
+      type: object
+      description: Component for displaying architectural diagrams
+      properties:
+        variant:
+          type: string
+          description: Type of diagram to display
+          enum: [basic, advanced, communication, components]
+        title:
+          type: string
+          description: Title for the diagram
+        description:
+          type: string
+          description: Description of what the diagram shows
+        showLegend:
+          type: boolean
+          description: Whether to show the legend
+          default: true
+        highlightElements:
+          type: array
+          items:
+            type: string
+          description: Elements to highlight in the diagram
+      required:
+        - variant
+
+    SimulationExample:
+      type: object
+      description: Component for displaying simulation examples
+      properties:
+        title:
+          type: string
+          description: Title for the simulation example
+        description:
+          type: string
+          description: Description of the simulation
+        code:
+          type: string
+          description: Configuration code for the simulation
+        language:
+          type: string
+          description: Language of the configuration code
+          enum: [xml, python, yaml, usd]
+        simulationType:
+          type: string
+          description: Type of simulation
+          enum: [gazebo, isaac_sim, unity, ros]
+        showControls:
+          type: boolean
+          description: Whether to show run/copy controls
+          default: true
+        showPreview:
+          type: boolean
+          description: Whether to show simulation preview
+          default: true
+        children:
+          type: string
+          description: Additional content within the example
+      required:
+        - title
+        - simulationType
+
+    IsaacSimScene:
+      type: object
+      description: Definition for Isaac Sim scenes used in educational content
+      properties:
+        name:
+          type: string
+          description: Name of the scene
+        description:
+          type: string
+          description: Description of the scene
+        robotModel:
+          type: string
+          description: Name of the humanoid robot model used
+        sensors:
+          type: array
+          items:
+            type: string
+          description: List of sensors included in the scene
+        environment:
+          type: string
+          description: Description of the environment
+        usdFilePath:
+          type: string
+          description: Path to the USD scene file
+        configurationFiles:
+          type: array
+          items:
+            type: string
+          description: List of configuration file paths
+      required:
+        - name
+        - description
+        - robotModel
+        - sensors
+        - environment
+
+    IsaacROSPipeline:
+      type: object
+      description: Definition for Isaac ROS perception pipelines
+      properties:
+        name:
+          type: string
+          description: Name of the pipeline
+        components:
+          type: array
+          items:
+            type: string
+          description: List of Isaac ROS GEMs used in the pipeline
+        inputTopics:
+          type: array
+          items:
+            type: string
+          description: List of input ROS topics
+        outputTopics:
+          type: array
+          items:
+            type: string
+          description: List of output ROS topics
+        hardwareRequirements:
+          type: string
+          description: Hardware requirements (GPU, Jetson, etc.)
+        performanceMetrics:
+          type: object
+          description: Performance metrics for the pipeline
+          properties:
+            processingRate:
+              type: number
+              description: Processing rate in Hz
+            accuracy:
+              type: number
+              description: Accuracy percentage
+        configurationFiles:
+          type: array
+          items:
+            type: string
+          description: List of configuration file paths
+      required:
+        - name
+        - components
+        - inputTopics
+        - outputTopics
+
+    NavigationConfiguration:
+      type: object
+      description: Configuration for humanoid navigation systems
+      properties:
+        name:
+          type: string
+          description: Name of the configuration
+        robotType:
+          type: string
+          description: Type of robot ("bipedal_humanoid")
+        costmapConfig:
+          type: string
+          description: Path to costmap configuration file
+        plannerConfig:
+          type: string
+          description: Path to path planner configuration file
+        localPlanner:
+          type: string
+          description: Type of local planner used
+        globalPlanner:
+          type: string
+          description: Type of global planner used
+        bipedalConstraints:
+          type: array
+          items:
+            type: string
+          description: List of constraints specific to bipedal robots
+      required:
+        - name
+        - robotType
+        - costmapConfig
+        - plannerConfig
+        - localPlanner
+        - globalPlanner

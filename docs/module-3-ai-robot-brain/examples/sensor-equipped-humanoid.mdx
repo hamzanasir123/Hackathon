@@ -1,0 +1,604 @@
+---
+title: Example 2 - Sensor-Equipped Humanoid in Isaac Sim
+sidebar_label: Sensor-Equipped Humanoid
+sidebar_position: 7
+description: Add LiDAR, cameras, IMU to humanoid model and verify sensor data output
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import CodeExample from '@site/src/components/CodeExample';
+import SimulationExample from '@site/src/components/SimulationExample';
+
+<ChapterLayout
+  title="Example 2 - Sensor-Equipped Humanoid in Isaac Sim"
+  description="Add LiDAR, cameras, IMU to humanoid model and verify sensor data output"
+  previous={{path: '/docs/module-3-ai-robot-brain/examples/basic-asset-loading', title: 'Basic Asset Loading'}}
+  next={{path: '/docs/module-3-ai-robot-brain/examples/perception-pipeline', title: 'Perception Pipeline'}}
+>
+
+## Overview
+
+This example builds upon the basic asset loading by adding various sensors to the humanoid robot model, including LiDAR, cameras, and IMU. We'll configure these sensors and verify that they produce appropriate data outputs.
+
+## Learning Objectives
+
+After completing this example, you will be able to:
+
+- Add multiple sensor types to a humanoid robot model
+- Configure sensor parameters (resolution, range, frequency)
+- Verify sensor data publication to ROS topics
+- Test sensor integration with Isaac Sim physics
+
+## Sensor Configuration in USD
+
+<CodeExample
+  language="usd"
+  title="Humanoid with Sensors USD"
+  description="USD file for humanoid robot with integrated sensors"
+  code={`#usda 1.0
+(
+    doc = "Humanoid robot with LiDAR, cameras, and IMU sensors"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "World"
+{
+    def "GroundPlane"
+    {
+        add references = @./assets/ground_plane.usd@
+    }
+
+    def "DomeLight" "domeLight"
+    {
+        float intensity = 1000
+        color inputs:color = (0.8, 0.8, 0.8)
+        bool inputs:enableColorTemperature = 1
+        float inputs:colorTemperature = 6500
+        asset inputs:texture:file = @./assets/sky.hdr@
+        float inputs:angle = 0.01
+    }
+
+    def Xform "Robot"
+    {
+        add references = @./assets/humanoid_sensors.usd@
+        matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+
+        # LiDAR sensor on head
+        def "Lidar" "head_lidar"
+        {
+            add apiSchemas = ["IsaacSensor"]
+            add apiSchemas = ["IsaacLidar"]
+            double horizontalOpeningAngle = 3.14159  # 180 degrees
+            double verticalOpeningAngle = 0.2618     # 15 degrees
+            int horizontalSamples = 720
+            int verticalSamples = 1
+            double maxRange = 25.0
+            double minRange = 0.1
+            double rotationSpeed = 10.0
+            rel isaac:lidar:topic = </lidar/scan>
+        }
+
+        # RGB camera on head
+        def "Camera" "head_camera"
+        {
+            add apiSchemas = ["IsaacSensor"]
+            add apiSchemas = ["IsaacImuSensor"]
+            int width = 640
+            int height = 480
+            float focalLength = 15.0
+            float horizontalAperture = 20.955
+            float verticalAperture = 15.2908
+            rel isaac:camera:topic = </camera/image>
+        }
+
+        # IMU sensor on torso
+        def "Imu" "torso_imu"
+        {
+            add apiSchemas = ["IsaacSensor"]
+            add apiSchemas = ["IsaacImuSensor"]
+            rel isaac:imu:topic = </imu/data>
+        }
+    }
+
+    def "PhysicsScene" "physicsScene"
+    {
+        float physics:defaultRestOffset = 0.001
+        float physics:defaultContactOffset = 0.002
+        float physics:gravity = -9.81
+        rel physics:scene = </physicsScene>
+    }
+}`}
+/>
+
+## Python Sensor Integration Script
+
+<CodeExample
+  language="python"
+  title="Sensor Integration Script"
+  description="Python script to integrate and test sensors on humanoid robot"
+  code={`#!/usr/bin/env python3
+import omni
+from omni.isaac.core import World
+from omni.isaac.core.utils.nucleus import get_assets_root_path
+from omni.isaac.core.utils.stage import add_reference_to_stage
+from omni.isaac.core.utils.prims import set_targets
+from omni.isaac.sensor import Lidar, Camera, ImuSensor
+from pxr import Gf
+import numpy as np
+import carb
+
+def setup_sensor_equipped_humanoid():
+    """
+    Set up a humanoid robot with integrated sensors in Isaac Sim
+    """
+    # Create a simulation world
+    my_world = World(stage_units_in_meters=1.0)
+
+    # Get assets root path
+    assets_root_path = get_assets_root_path()
+    if assets_root_path is None:
+        print("Could not use Isaac Sim assets. Ensure Isaac Sim is installed.")
+        return None
+
+    # Add a ground plane
+    add_reference_to_stage(
+        usd_path=assets_root_path + "/Isaac/Environments/Simple_Room/simple_room.usd",
+        prim_path="/World/GroundPlane"
+    )
+
+    # Load a humanoid robot asset
+    humanoid_asset_path = assets_root_path + "/Isaac/Robots/Humanoid/humanoid.usd"
+    add_reference_to_stage(
+        usd_path=humanoid_asset_path,
+        prim_path="/World/Humanoid"
+    )
+
+    # Add LiDAR sensor to the head
+    lidar = my_world.add_sensor(
+        "lidar",
+        prim_path="/World/Humanoid/head_lidar",
+        sensor_period="100",
+        translation=np.array([0.1, 0.0, 0.05]),  # Position relative to head
+        orientation=np.array([1.0, 0.0, 0.0, 0.0])
+    )
+
+    # Add RGB camera to the head
+    camera = my_world.add_sensor(
+        "camera",
+        prim_path="/World/Humanoid/head_camera",
+        translation=np.array([0.05, 0.0, 0.05]),  # Position relative to head
+        orientation=np.array([1.0, 0.0, 0.0, 0.0]),
+        config={"width": 640, "height": 480, "focal_length": 15.0}
+    )
+
+    # Add IMU sensor to the torso
+    imu = my_world.add_sensor(
+        "imu",
+        prim_path="/World/Humanoid/torso_imu",
+        translation=np.array([0.0, 0.0, 0.1]),  # Position relative to torso
+        orientation=np.array([1.0, 0.0, 0.0, 0.0])
+    )
+
+    # Reset the world
+    my_world.reset()
+
+    print("Sensor-equipped humanoid setup complete!")
+    print("LiDAR, Camera, and IMU sensors added to humanoid robot")
+    print("Sensors ready for data collection")
+
+    return my_world, lidar, camera, imu
+
+def test_sensor_data_collection():
+    """
+    Test data collection from all sensors
+    """
+    world, lidar, camera, imu = setup_sensor_equipped_humanoid()
+    if world is None:
+        return
+
+    print("Testing sensor data collection for 200 simulation steps...")
+
+    # Data collection variables
+    lidar_data_collected = False
+    camera_data_collected = False
+    imu_data_collected = False
+
+    for i in range(200):
+        # Step the world
+        world.step(render=True)
+
+        # Check for LiDAR data
+        if i > 10 and not lidar_data_collected:
+            try:
+                # Get LiDAR data
+                lidar_data = lidar.get_sensor_data()
+                if lidar_data is not None and len(lidar_data) > 0:
+                    print(f"✓ LiDAR data collected at step {i}")
+                    print(f"  - Range data: {len(lidar_data['range'])} points")
+                    print(f"  - Horizontal samples: {lidar_data.get('horizontal_samples', 'N/A')}")
+                    lidar_data_collected = True
+            except Exception as e:
+                carb.log_error(f"Lidar data collection error: {e}")
+
+        # Check for Camera data
+        if i > 10 and not camera_data_collected:
+            try:
+                # Get camera data
+                camera_data = camera.get_sensor_data()
+                if camera_data is not None and camera_data.get("rgb", None) is not None:
+                    print(f"✓ Camera data collected at step {i}")
+                    print(f"  - Image resolution: {camera_data['rgb'].shape[1]}x{camera_data['rgb'].shape[0]}")
+                    camera_data_collected = True
+            except Exception as e:
+                carb.log_error(f"Camera data collection error: {e}")
+
+        # Check for IMU data
+        if i > 10 and not imu_data_collected:
+            try:
+                # Get IMU data
+                imu_data = imu.get_sensor_data()
+                if imu_data is not None:
+                    print(f"✓ IMU data collected at step {i}")
+                    print(f"  - Linear acceleration: {imu_data.get('linear_acceleration', 'N/A')}")
+                    print(f"  - Angular velocity: {imu_data.get('angular_velocity', 'N/A')}")
+                    imu_data_collected = True
+            except Exception as e:
+                carb.log_error(f"IMU data collection error: {e}")
+
+        # Print progress every 50 steps
+        if i % 50 == 0:
+            print(f"Simulation step: {i}/200")
+
+        # Break if all data collected
+        if lidar_data_collected and camera_data_collected and imu_data_collected:
+            print("All sensor data collected successfully!")
+            break
+
+    # Print summary
+    print("\\nSensor Data Collection Summary:")
+    print(f"  - LiDAR data: {'✓' if lidar_data_collected else '✗'}")
+    print(f"  - Camera data: {'✓' if camera_data_collected else '✗'}")
+    print(f"  - IMU data: {'✓' if imu_data_collected else '✗'}")
+
+    return world
+
+if __name__ == "__main__":
+    test_sensor_data_collection()`}
+/>
+
+## Sensor Parameter Configuration
+
+<SimulationExample
+  title="Sensor Configuration"
+  description="Complete configuration for all sensors on the humanoid robot"
+  code={`# Sensor Configuration for Humanoid Robot
+sensor_config:
+  # LiDAR configuration
+  lidar:
+    name: "head_lidar"
+    parent_link: "head"
+    type: "ray_based_lidar"
+    position: [0.1, 0.0, 0.05]  # x, y, z relative to parent
+    orientation: [0.0, 0.0, 0.0]  # roll, pitch, yaw in radians
+    parameters:
+      horizontal_samples: 720
+      vertical_samples: 1
+      horizontal_fov: 180.0  # degrees
+      vertical_fov: 15.0    # degrees
+      range: [0.1, 25.0]    # min, max range in meters
+      rotation_speed: 10.0  # deg/s
+      rpm: 60.0
+      noise:
+        enable: true
+        mean: 0.0
+        std: 0.01
+    ros_topic: "/lidar/scan"
+    update_frequency: 10.0  # Hz
+
+  # RGB Camera configuration
+  camera:
+    name: "head_camera"
+    parent_link: "head"
+    type: "rgb_camera"
+    position: [0.05, 0.0, 0.05]
+    orientation: [0.0, 0.0, 0.0]
+    parameters:
+      width: 640
+      height: 480
+      fov: 90.0  # degrees
+      focal_length: 15.0
+      horizontal_aperture: 20.955
+      vertical_aperture: 15.2908
+      clipping_range: [0.1, 100.0]
+      projection_type: "perspective"
+      noise:
+        enable: true
+        type: "gaussian"
+        mean: 0.0
+        std: 0.005
+    ros_topic: "/camera/image_raw"
+    info_topic: "/camera/camera_info"
+    update_frequency: 30.0  # Hz
+
+  # Depth Camera configuration
+  depth_camera:
+    name: "head_depth_camera"
+    parent_link: "head"
+    type: "depth_camera"
+    position: [0.06, 0.0, 0.05]  # Slightly offset from RGB camera
+    orientation: [0.0, 0.0, 0.0]
+    parameters:
+      width: 640
+      height: 480
+      fov: 90.0
+      clipping_range: [0.1, 10.0]
+      noise:
+        enable: true
+        mean: 0.0
+        std: 0.02
+    ros_topic: "/camera/depth/image_raw"
+    info_topic: "/camera/depth/camera_info"
+    update_frequency: 30.0  # Hz
+
+  # IMU configuration
+  imu:
+    name: "torso_imu"
+    parent_link: "torso"
+    type: "imu"
+    position: [0.0, 0.0, 0.1]
+    orientation: [0.0, 0.0, 0.0]
+    parameters:
+      linear_acceleration_noise_density: 0.01
+      angular_velocity_noise_density: 0.001
+      linear_acceleration_random_walk: 0.001
+      angular_velocity_random_walk: 0.0001
+      enable_gravity: true
+    ros_topic: "/imu/data"
+    update_frequency: 100.0  # Hz
+
+  # Joint State Sensor
+  joint_state:
+    name: "joint_state_sensor"
+    parent_link: "base_link"
+    type: "joint_state_publisher"
+    parameters:
+      joint_names: ["joint1", "joint2", "joint3", ...]  # All humanoid joints
+      publish_rate: 50.0  # Hz
+    ros_topic: "/joint_states"
+
+  # Sensor Integration Settings
+  integration:
+    # Synchronization settings
+    synchronize_sensors: true
+    sync_tolerance: 0.01  # seconds
+
+    # Data processing
+    data_buffer_size: 100
+    data_compression: false
+
+    # Calibration
+    extrinsic_calibration: true
+    intrinsic_calibration: true
+
+    # Validation
+    data_validation: true
+    outlier_rejection: true`}
+  language="yaml"
+  simulationType="isaac_sim"
+>
+
+This configuration defines all sensors for the humanoid robot with appropriate parameters for each sensor type.
+
+</SimulationExample>
+
+## ROS Integration and Data Verification
+
+<CodeExample
+  language="python"
+  title="ROS Sensor Data Verification"
+  description="Python script to verify sensor data publication to ROS topics"
+  code={`#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import LaserScan, Image, Imu, JointState
+from std_msgs.msg import Header
+from cv_bridge import CvBridge
+import numpy as np
+import math
+
+class SensorDataVerifier(Node):
+    def __init__(self):
+        super().__init__('sensor_data_verifier')
+
+        # Initialize CvBridge for image processing
+        self.bridge = CvBridge()
+
+        # Create subscribers for all sensor data
+        self.lidar_sub = self.create_subscription(
+            LaserScan,
+            '/lidar/scan',
+            self.lidar_callback,
+            10
+        )
+
+        self.camera_sub = self.create_subscription(
+            Image,
+            '/camera/image_raw',
+            self.camera_callback,
+            10
+        )
+
+        self.imu_sub = self.create_subscription(
+            Imu,
+            '/imu/data',
+            self.imu_callback,
+            10
+        )
+
+        self.joint_sub = self.create_subscription(
+            JointState,
+            '/joint_states',
+            self.joint_callback,
+            10
+        )
+
+        # Statistics for verification
+        self.lidar_count = 0
+        self.camera_count = 0
+        self.imu_count = 0
+        self.joint_count = 0
+
+        # Verification flags
+        self.lidar_verified = False
+        self.camera_verified = False
+        self.imu_verified = False
+        self.joint_verified = False
+
+        # Timer for periodic verification
+        self.timer = self.create_timer(5.0, self.verification_callback)
+
+    def lidar_callback(self, msg):
+        self.lidar_count += 1
+
+        # Verify LiDAR data
+        if len(msg.ranges) > 0:
+            valid_ranges = [r for r in msg.ranges if msg.range_min <= r <= msg.range_max]
+            if len(valid_ranges) > len(msg.ranges) * 0.5:  # At least 50% valid ranges
+                if not self.lidar_verified:
+                    self.get_logger().info(f"✓ LiDAR data verified - {len(msg.ranges)} ranges, {len(valid_ranges)} valid")
+                    self.lidar_verified = True
+
+    def camera_callback(self, msg):
+        self.camera_count += 1
+
+        # Convert to OpenCV image for verification
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+            height, width, channels = cv_image.shape
+
+            if height > 0 and width > 0 and channels > 0:
+                if not self.camera_verified:
+                    self.get_logger().info(f"✓ Camera data verified - {width}x{height}, {channels} channels")
+                    self.camera_verified = True
+        except Exception as e:
+            self.get_logger().error(f"Camera data conversion error: {e}")
+
+    def imu_callback(self, msg):
+        self.imu_count += 1
+
+        # Verify IMU data
+        lin_acc = msg.linear_acceleration
+        ang_vel = msg.angular_velocity
+        orientation = msg.orientation
+
+        # Check if values are reasonable
+        if (abs(lin_acc.x) < 20 and abs(lin_acc.y) < 20 and abs(lin_acc.z) < 20 and  # Reasonable acceleration
+            abs(ang_vel.x) < 10 and abs(ang_vel.y) < 10 and abs(ang_vel.z) < 10 and  # Reasonable angular velocity
+            orientation.w != 0):  # Valid quaternion
+            if not self.imu_verified:
+                self.get_logger().info("✓ IMU data verified - reasonable values detected")
+                self.imu_verified = True
+
+    def joint_callback(self, msg):
+        self.joint_count += 1
+
+        # Verify joint state data
+        if len(msg.name) > 0 and (len(msg.position) == len(msg.name) or
+                                  len(msg.velocity) == len(msg.name) or
+                                  len(msg.effort) == len(msg.name)):
+            if not self.joint_verified:
+                self.get_logger().info(f"✓ Joint state verified - {len(msg.name)} joints")
+                self.joint_verified = True
+
+    def verification_callback(self):
+        # Print current statistics
+        self.get_logger().info(
+            f"Data collection stats - LiDAR: {self.lidar_count}, "
+            f"Camera: {self.camera_count}, IMU: {self.imu_count}, "
+            f"Joints: {self.joint_count}"
+        )
+
+        # Check if all sensors are verified
+        if all([self.lidar_verified, self.camera_verified, self.imu_verified, self.joint_verified]):
+            self.get_logger().info("🎉 All sensors verified successfully!")
+            self.get_logger().info("Sensor-equipped humanoid is ready for perception pipeline integration")
+
+def main(args=None):
+    rclpy.init(args=args)
+    verifier = SensorDataVerifier()
+
+    try:
+        rclpy.spin(verifier)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        verifier.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Troubleshooting Sensor Integration
+
+<CodeExample
+  language="bash"
+  title="Sensor Integration Troubleshooting"
+  description="Script to diagnose sensor integration issues"
+  code={`#!/bin/bash
+
+echo "Sensor Integration Troubleshooting"
+echo "================================="
+
+# Check ROS topics
+echo "Available Sensor Topics:"
+ros2 topic list | grep -E "(lidar|camera|imu|joint|scan|image|sensor)"
+
+echo ""
+echo "Sensor Topic Status:"
+for topic in \$(ros2 topic list | grep -E "(lidar|camera|imu|joint|scan|image)"); do
+    echo -n "  \$topic: "
+    timeout 2 ros2 topic hz \$topic 2>/dev/null | head -1 | cut -d':' -f2 || echo "No data"
+done
+
+echo ""
+echo "Sensor Nodes Status:"
+ros2 node list | grep -E "(lidar|camera|imu|sensor)"
+
+echo ""
+echo "Isaac Sim Sensor Status:"
+# Check Isaac Sim logs for sensor-related messages
+if [ -d ~/.nvidia-omniverse/logs ]; then
+    echo "Recent Isaac Sim sensor errors:"
+    grep -i "sensor\\|lidar\\|camera\\|imu" ~/.nvidia-omniverse/logs/omni.isaac.*.log | tail -10
+else
+    echo "Isaac Sim logs not found"
+fi
+
+echo ""
+echo "Sensor Data Validation:"
+# Check if sensor data is being published
+timeout 5 ros2 topic echo /lidar/scan --field ranges --field angle_min --field angle_max --once 2>/dev/null && echo "✓ LiDAR data available" || echo "✗ LiDAR data not available"
+timeout 5 ros2 topic echo /camera/image_raw --field height --field width --once 2>/dev/null && echo "✓ Camera data available" || echo "✗ Camera data not available"
+timeout 5 ros2 topic echo /imu/data --field linear_acceleration --once 2>/dev/null && echo "✓ IMU data available" || echo "✗ IMU data not available"
+
+echo ""
+echo "Run 'ros2 run sensor_integration_test verify_sensors' for comprehensive testing"
+echo "Check USD files for proper sensor prim definitions"
+echo "Verify Isaac Sim has required sensor extensions enabled"`}
+/>
+
+## Summary
+
+This example successfully integrated multiple sensors into the humanoid robot model:
+
+- Added LiDAR, RGB camera, depth camera, and IMU sensors to the humanoid
+- Configured appropriate parameters for each sensor type
+- Verified sensor data publication to ROS topics
+- Created validation scripts to test sensor functionality
+- Provided troubleshooting procedures for sensor integration issues
+
+The next example will build upon this foundation by implementing Isaac ROS GEMs for perception processing of the sensor data.
+
+</ChapterLayout>

@@ -1,0 +1,312 @@
+---
+title: Example 1 - Basic Asset Loading in Isaac Sim
+sidebar_label: Basic Asset Loading
+sidebar_position: 6
+description: Load humanoid robot model in Isaac Sim with basic scene setup
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import CodeExample from '@site/src/components/CodeExample';
+import SimulationExample from '@site/src/components/SimulationExample';
+
+<ChapterLayout
+  title="Example 1 - Basic Asset Loading in Isaac Sim"
+  description="Load humanoid robot model in Isaac Sim with basic scene setup"
+  previous={{path: '/docs/module-3-ai-robot-brain/navigation-path-planning', title: 'Navigation and Path Planning'}}
+  next={{path: '/docs/module-3-ai-robot-brain/examples/sensor-equipped-humanoid', title: 'Sensor-Equipped Humanoid'}}
+>
+
+## Overview
+
+This example demonstrates the basic setup of loading a humanoid robot model in Isaac Sim with a simple scene configuration. This is the foundation for all other Isaac Sim examples.
+
+## Learning Objectives
+
+After completing this example, you will be able to:
+
+- Launch Isaac Sim with a humanoid robot model
+- Configure basic scene elements (ground plane, lighting)
+- Set initial robot pose and configuration
+- Verify basic simulation physics
+
+## Setting Up the Basic Scene
+
+### USD Scene Configuration
+
+<CodeExample
+  language="usd"
+  title="Basic Humanoid Scene USD"
+  description="USD file for basic humanoid robot scene"
+  code={`#usda 1.0
+(
+    doc = "Basic humanoid robot scene with ground plane and lighting"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "World"
+{
+    def "GroundPlane"
+    {
+        add references = @./assets/ground_plane.usd@
+    }
+
+    def "DomeLight" "domeLight"
+    {
+        float intensity = 1000
+        color inputs:color = (0.8, 0.8, 0.8)
+        bool inputs:enableColorTemperature = 1
+        float inputs:colorTemperature = 6500
+        asset inputs:texture:file = @./assets/sky.hdr@
+        float inputs:angle = 0.01
+    }
+
+    def Xform "Robot"
+    {
+        add references = @./assets/humanoid.urdf@
+        matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+    }
+
+    def "PhysicsScene" "physicsScene"
+    {
+        float physics:defaultRestOffset = 0.001
+        float physics:defaultContactOffset = 0.002
+        float physics:gravity = -9.81
+        rel physics:scene = </physicsScene>
+    }
+}`}
+/>
+
+### Python Setup Script
+
+<CodeExample
+  language="python"
+  title="Basic Isaac Sim Setup Script"
+  description="Python script to set up basic humanoid simulation"
+  code={`#!/usr/bin/env python3
+import omni
+from omni.isaac.core import World
+from omni.isaac.core.utils.nucleus import get_assets_root_path
+from omni.isaac.core.utils.stage import add_reference_to_stage
+from omni.isaac.core.utils.prims import set_targets
+from pxr import Gf
+import numpy as np
+
+def setup_basic_humanoid_simulation():
+    """
+    Set up a basic humanoid robot simulation in Isaac Sim
+    """
+    # Create a simulation world
+    my_world = World(stage_units_in_meters=1.0)
+
+    # Get assets root path
+    assets_root_path = get_assets_root_path()
+    if assets_root_path is None:
+        print("Could not use Isaac Sim assets. Ensure Isaac Sim is installed.")
+        return None
+
+    # Add a ground plane
+    add_reference_to_stage(
+        usd_path=assets_root_path + "/Isaac/Environments/Simple_Room/simple_room.usd",
+        prim_path="/World/GroundPlane"
+    )
+
+    # Load a humanoid robot asset
+    # Note: This is a simplified example - actual humanoid assets may vary
+    humanoid_asset_path = assets_root_path + "/Isaac/Robots/Humanoid/humanoid.usd"
+    add_reference_to_stage(
+        usd_path=humanoid_asset_path,
+        prim_path="/World/Humanoid"
+    )
+
+    # Set initial pose for the humanoid
+    from omni.isaac.core.utils.transformations import set_position_orientation
+    set_position_orientation(
+        prim_path="/World/Humanoid",
+        position=np.array([0.0, 0.0, 1.0]),
+        orientation=np.array([1.0, 0.0, 0.0, 0.0])  # No rotation (w, x, y, z)
+    )
+
+    # Add lighting
+    from omni.isaac.core.utils.prims import create_prim
+    create_prim(
+        prim_path="/World/Light",
+        prim_type="DomeLight",
+        position=np.array([0, 0, 5]),
+        attributes={"inputs:intensity": 3000}
+    )
+
+    # Reset the world
+    my_world.reset()
+
+    print("Basic humanoid simulation setup complete!")
+    print("Robot loaded at position: [0.0, 0.0, 1.0]")
+    print("Simulation ready for physics testing")
+
+    return my_world
+
+def run_basic_simulation():
+    """
+    Run the basic simulation for a number of steps
+    """
+    world = setup_basic_humanoid_simulation()
+    if world is None:
+        return
+
+    print("Running basic simulation for 1000 steps...")
+
+    for i in range(1000):
+        # Step the world
+        world.step(render=True)
+
+        # Print progress every 200 steps
+        if i % 200 == 0:
+            print(f"Simulation step: {i}/1000")
+
+    print("Basic simulation completed!")
+
+if __name__ == "__main__":
+    run_basic_simulation()`}
+/>
+
+## Running the Simulation
+
+<SimulationExample
+  title="Basic Asset Loading Simulation"
+  description="Complete configuration for basic humanoid asset loading in Isaac Sim"
+  code={`# Basic Asset Loading Configuration
+simulation_config:
+  # Isaac Sim settings
+  isaac_sim:
+    app_path: "/path/to/isaac-sim"
+    rendering:
+      resolution: [1280, 720]
+      anti_aliasing: 2
+      max_render_time: 30.0
+    physics:
+      solver:
+        type: "PhysX"
+        substeps: 1
+        iterations: 4
+      timestep: 0.008333  # 120 Hz
+    stage:
+      units_per_meter: 1.0
+      up_axis: "Y"
+
+  # Robot configuration
+  robot:
+    name: "basic_humanoid"
+    urdf_path: "/assets/robots/humanoid.urdf"
+    usd_path: "/assets/robots/humanoid.usd"
+    initial_position: [0.0, 0.0, 1.0]
+    initial_orientation: [0.0, 0.0, 0.0, 1.0]  # w, x, y, z quaternion
+    joint_limits:
+      enabled: true
+      safety_factor: 0.95
+
+  # Environment configuration
+  environment:
+    name: "basic_scene"
+    ground_plane:
+      enabled: true
+      size: [10.0, 10.0]
+      material: "default_ground"
+    lighting:
+      dome_light:
+        enabled: true
+        intensity: 3000
+        color_temperature: 6500
+    physics:
+      gravity: [0.0, -9.81, 0.0]
+      ground_friction: 0.5
+      ground_restitution: 0.0
+
+  # Simulation parameters
+  simulation:
+    duration: 10.0  # seconds
+    record_video: false
+    record_data: false
+    checkpoint_interval: 5.0  # seconds
+
+  # Validation checks
+  validation:
+    robot_loaded: true
+    physics_enabled: true
+    rendering_enabled: true
+    initial_pose_valid: true`}
+  language="yaml"
+  simulationType="isaac_sim"
+>
+
+This configuration sets up a basic humanoid robot in Isaac Sim with proper physics and rendering parameters.
+
+</SimulationExample>
+
+## Verification Steps
+
+1. **Launch Isaac Sim** with the basic humanoid scene
+2. **Verify robot model** loads correctly in the scene
+3. **Check physics simulation** - robot should maintain its initial position
+4. **Confirm rendering** - scene should be properly illuminated
+5. **Validate initial pose** - robot should be positioned as specified
+
+## Troubleshooting
+
+<CodeExample
+  language="bash"
+  title="Basic Asset Loading Troubleshooting"
+  description="Script to diagnose basic asset loading issues"
+  code={`#!/bin/bash
+
+echo "Basic Asset Loading Troubleshooting"
+echo "=================================="
+
+# Check Isaac Sim installation
+echo "Isaac Sim Installation Check:"
+if [ -d "/isaac-sim" ]; then
+    echo "✓ Isaac Sim directory found"
+else
+    echo "✗ Isaac Sim directory not found"
+fi
+
+# Check assets availability
+echo ""
+echo "Assets Availability Check:"
+if [ -f "/isaac-sim/assets/robots/humanoid.usd" ]; then
+    echo "✓ Humanoid asset found"
+else
+    echo "✗ Humanoid asset not found"
+fi
+
+# Check USD file validity
+echo ""
+echo "USD File Validation:"
+if command -v usdview &> /dev/null; then
+    echo "✓ USD tools available"
+else
+    echo "✗ USD tools not available"
+fi
+
+# Check Python dependencies
+echo ""
+echo "Python Dependencies Check:"
+python3 -c "import omni.isaac.core" 2>/dev/null && echo "✓ Isaac Core available" || echo "✗ Isaac Core not available"
+python3 -c "import pxr" 2>/dev/null && echo "✓ Pixar USD available" || echo "✗ Pixar USD not available"
+
+echo ""
+echo "Run 'python3 -m omni.isaac.examples.basic_humanoid' for the example"
+echo "Check logs in ~/.nvidia-omniverse/logs/ for detailed error information"`}
+/>
+
+## Summary
+
+This example established the foundation for Isaac Sim usage by:
+
+- Loading a humanoid robot model in the simulation environment
+- Setting up basic scene elements (ground plane, lighting)
+- Configuring initial robot pose and physics properties
+- Providing validation and troubleshooting procedures
+
+The next example will build upon this foundation by adding sensors to the humanoid robot.
+
+</ChapterLayout>

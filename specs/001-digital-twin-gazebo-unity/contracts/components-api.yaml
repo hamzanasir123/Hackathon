@@ -1,0 +1,113 @@
+# API Contract: Educational Components for Digital Twin Module
+
+openapi: 3.0.0
+info:
+  title: Educational Components API for Digital Twin Module
+  description: API contracts for educational components used in Module 2: The Digital Twin (Gazebo & Unity)
+  version: 1.0.0
+
+components:
+  schemas:
+    CodeExample:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Descriptive title of the code example
+        language:
+          type: string
+          description: Programming language or format (python, xml, yaml, etc.)
+        code:
+          type: string
+          description: The actual code content
+        explanation:
+          type: string
+          description: Detailed explanation of the code
+        chapterId:
+          type: string
+          description: Reference to the parent chapter
+      required:
+        - title
+        - language
+        - code
+        - explanation
+        - chapterId
+
+    ConceptExplainer:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the concept being explained
+        concept:
+          type: string
+          description: The concept being explained
+        analogy:
+          type: string
+          description: Real-world analogy to help understand the concept
+        examples:
+          type: array
+          items:
+            type: string
+          description: List of practical examples
+        relatedConcepts:
+          type: array
+          items:
+            type: string
+          description: List of related concepts
+      required:
+        - title
+        - concept
+        - analogy
+        - examples
+        - relatedConcepts
+
+    ArchitectureDiagram:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the architecture diagram
+        variant:
+          type: string
+          description: Type of diagram (basic, advanced, communication, components)
+        showLegend:
+          type: boolean
+          description: Whether to show the legend on the diagram
+        highlightElements:
+          type: array
+          items:
+            type: string
+          description: List of elements to highlight in the diagram
+      required:
+        - title
+        - variant
+
+    SimulationExample:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the simulation example
+        description:
+          type: string
+          description: Description of what the example demonstrates
+        packageName:
+          type: string
+          description: Name of the ROS package for the example
+        packagePath:
+          type: string
+          description: Path to the example package
+        runInstructions:
+          type: array
+          items:
+            type: string
+          description: Step-by-step instructions to run the example
+      required:
+        - title
+        - description
+        - packageName
+        - packagePath
+        - runInstructions
+
+paths: {}

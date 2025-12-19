@@ -1,0 +1,227 @@
+/**
+ * Common CSS for Educational Components
+ * Provides consistent styling across all educational components
+ */
+
+/* Common educational component container */
+.educationalComponent {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Header styling for educational components */
+.educationalHeader {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #cbd5e0;
+}
+
+.educationalTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.educationalIcon {
+  font-size: 1.25rem;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+/* Description styling */
+.educationalDescription {
+  margin-bottom: 1rem;
+  color: #4a5568;
+  line-height: 1.6;
+}
+
+/* Code block styling (consistent with existing CodeExample) */
+.educationalCodeBlock {
+  margin: 1rem 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.educationalCodeToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #edf2f7;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+.educationalCodeLanguage {
+  font-family: inherit;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.educationalCodePre {
+  margin: 0;
+  padding: 1rem;
+  background-color: #ffffff;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #2d3748;
+  white-space: pre-wrap;
+}
+
+.educationalCode {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Interactive element styling */
+.educationalButton {
+  padding: 0.5rem 1rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #4a5568;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.educationalButton:hover {
+  background-color: #edf2f7;
+}
+
+.educationalButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Info box styling */
+.educationalInfoBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #ebf8ff;
+  border-left: 4px solid #3182ce;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #2d3748;
+}
+
+.educationalInfoBox strong {
+  color: #2b6cb0;
+}
+
+/* Warning box styling */
+.educationalWarningBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #856404;
+}
+
+.educationalWarningBox strong {
+  color: #664d03;
+}
+
+/* Success box styling */
+.educationalSuccessBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #d4edda;
+  border-left: 4px solid #28a745;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #155724;
+}
+
+.educationalSuccessBox strong {
+  color: #0b2e13;
+}
+
+/* Highlighted text */
+.educationalHighlight {
+  background-color: #fff3cd;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+/* Terminal/console styling */
+.educationalTerminal {
+  background-color: #1a202c;
+  color: #e2e8f0;
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.875rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.educationalTerminalPrompt {
+  color: #68d391;
+  margin-right: 0.5rem;
+}
+
+/* Table styling for educational content */
+.educationalTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  background-color: white;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.educationalTable th,
+.educationalTable td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.educationalTable th {
+  background-color: #edf2f7;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.educationalTable tr:last-child td {
+  border-bottom: none;
+}
+
+/* Responsive design for educational components */
+@media screen and (max-width: 768px) {
+  .educationalComponent {
+    padding: 1rem;
+  }
+
+  .educationalTitle {
+    font-size: 1rem;
+  }
+
+  .educationalCodePre {
+    padding: 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .educationalCodeToolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+}

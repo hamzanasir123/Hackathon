@@ -1,0 +1,296 @@
+---
+title: Chapter 1 - Overview of NVIDIA Isaac Platform and Isaac Sim
+sidebar_label: Overview of NVIDIA Isaac Platform
+sidebar_position: 2
+description: Introduction to NVIDIA Isaac ecosystem, Isaac Sim, Omniverse, domain randomization, and sim-to-real transfer techniques
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+
+<ChapterLayout
+  title="Chapter 1 - Overview of NVIDIA Isaac Platform and Isaac Sim"
+  description="Introduction to NVIDIA Isaac ecosystem, Isaac Sim, Omniverse, domain randomization, and sim-to-real transfer techniques"
+  previous={{path: '/docs/module-3-ai-robot-brain', title: 'Module 3: AI-Robot Brain'}}
+  next={{path: '/docs/module-3-ai-robot-brain/advanced-perception', title: 'Advanced Perception'}}
+>
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Understand the NVIDIA Isaac ecosystem components (Isaac Sim and Isaac ROS)
+- Explain photorealistic simulation with Omniverse
+- Describe domain randomization and synthetic data generation for training robust perception models
+- Apply sim-to-real transfer techniques
+- Compare Isaac Sim with Gazebo for different use cases
+- Set up basic workflows in Isaac Sim
+
+## Introduction to NVIDIA Isaac Ecosystem
+
+<ConceptExplainer
+  concept="NVIDIA Isaac Ecosystem"
+  analogy="The Isaac ecosystem is like a complete digital laboratory for robotics, providing tools for simulation, perception, navigation, and deployment."
+  description="The NVIDIA Isaac platform provides a comprehensive set of tools for developing, simulating, and deploying AI-powered robots. It includes Isaac Sim for photorealistic simulation, Isaac ROS for hardware-accelerated perception, and Isaac Apps for reference robot applications."
+  examples={[
+    "Isaac Sim for creating realistic training environments",
+    "Isaac ROS GEMs for hardware-accelerated perception",
+    "Isaac Apps for reference implementations of robot behaviors"
+  ]}
+  relatedConcepts={["Isaac Sim", "Isaac ROS", "Omniverse", "GEMs", "Robotics"]}
+>
+
+### Key Components of Isaac Ecosystem
+
+- **Isaac Sim**: Photorealistic simulation environment built on Omniverse
+- **Isaac ROS**: Hardware-accelerated perception and navigation packages
+- **Isaac Apps**: Reference applications and robot implementations
+- **Isaac Navigation**: Navigation stack optimized for Isaac platform
+- **Omniverse**: NVIDIA's simulation and collaboration platform
+
+</ConceptExplainer>
+
+<ArchitectureDiagram
+  variant="components"
+  title="Isaac Ecosystem Architecture"
+  description="Shows the key components of the NVIDIA Isaac ecosystem and their interconnections"
+  highlightElements={["isaac_sim", "isaac_ros", "omniverse"]}
+/>
+
+## Isaac Sim: Photorealistic Simulation
+
+Isaac Sim is NVIDIA's next-generation robotics simulator built on the Omniverse platform. It provides:
+
+### USD-Based Scene Description
+
+Isaac Sim uses Universal Scene Description (USD) as its native format:
+
+<CodeExample
+  language="usd"
+  title="Basic USD Scene for Isaac Sim"
+  description="Example of a simple USD scene file that can be loaded in Isaac Sim"
+  code={`#usda 1.0
+
+def Xform "Robot" (
+    prepend references = @./franka_panda.usd@
+)
+{
+    def Xform "base_link"
+    {
+        def Capsule "collision"
+        {
+            uniform token[] collisionGroupNames = ["default"]
+        }
+        def Mesh "visual"
+        {
+            prepend references = @./visual/meshes/base_link.vdb@
+        }
+    }
+}`}
+/>
+
+### Key Features of Isaac Sim
+
+1. **Physically Accurate Simulation**: Realistic physics simulation with PhysX engine
+2. **Photorealistic Rendering**: High-quality graphics using NVIDIA RTX technology
+3. **Domain Randomization**: Built-in tools for generating diverse training data
+4. **Synthetic Data Generation**: Tools for creating labeled datasets
+5. **Omniverse Integration**: Collaboration and extensibility features
+
+## Omniverse Platform Integration
+
+<ConceptExplainer
+  concept="Omniverse Platform"
+  description="NVIDIA Omniverse is a simulation and collaboration platform that provides the foundation for Isaac Sim."
+  examples={[
+    "Multi-user collaboration on simulation environments",
+    "Real-time rendering with RTX technology",
+    "USD-based asset exchange",
+    "Extensible through Python and C++ extensions"
+  ]}
+  relatedConcepts={["USD", "RTX", "Collaboration", "Extensions"]}
+>
+
+### Omniverse Benefits for Robotics
+
+- **Real-time Collaboration**: Multiple users can work on the same simulation
+- **High-fidelity Graphics**: RTX-powered rendering for photorealistic visuals
+- **USD Ecosystem**: Standard format for 3D scene exchange
+- **Extensibility**: Python and C++ APIs for custom extensions
+
+</ConceptExplainer>
+
+## Domain Randomization and Synthetic Data
+
+### Understanding Domain Randomization
+
+<CodeExample
+  language="python"
+  title="Domain Randomization Example"
+  description="Python code to configure domain randomization in Isaac Sim"
+  code={`import omni
+from omni.isaac.core.utils.prims import get_prim_at_path
+from omni.isaac.core.utils.stage import add_reference_to_stage
+
+# Configure domain randomization parameters
+def configure_domain_randomization():
+    # Randomize lighting conditions
+    light_prim = get_prim_at_path("/World/Light")
+    light_prim.GetAttribute("inputs:intensity").Set(100 + random.uniform(-50, 50))
+
+    # Randomize material properties
+    material_prim = get_prim_at_path("/World/Materials/RandomMaterial")
+    color = (random.random(), random.random(), random.random())
+    material_prim.GetAttribute("inputs:diffuse_color_constant").Set(color)
+
+    # Randomize object positions
+    for i in range(10):
+        obj_prim = get_prim_at_path(f"/World/Object_{i}")
+        new_pos = [random.uniform(-2, 2), random.uniform(-2, 2), 0.1]
+        obj_prim.GetAttribute("xformOp:translate").Set(new_pos)`}
+/>
+
+Domain randomization is crucial for creating robust perception systems that can transfer from simulation to reality.
+
+## Isaac Sim vs Gazebo Comparison
+
+<ConceptExplainer
+  concept="Isaac Sim vs Gazebo"
+  description="Comparison of Isaac Sim and Gazebo simulation platforms for different robotics applications."
+  examples={[
+    "Isaac Sim for perception training with photorealistic rendering",
+    "Gazebo for physics simulation and basic robot testing",
+    "Isaac Sim for domain randomization and synthetic data",
+    "Gazebo for ROS integration and established workflows"
+  ]}
+  relatedConcepts={["Isaac Sim", "Gazebo", "Simulation", "Perception", "Physics"]}
+>
+
+### When to Use Each Platform
+
+| Feature | Isaac Sim | Gazebo |
+|---------|-----------|---------|
+| Physics Accuracy | High (PhysX) | High (ODE, Bullet) |
+| Rendering Quality | Photorealistic (RTX) | Basic (OpenGL) |
+| Domain Randomization | Built-in | Requires plugins |
+| Synthetic Data | Native support | Limited |
+| ROS Integration | Good | Excellent |
+| Community | Growing | Established |
+| Use Case | Perception training | General simulation |
+
+</ConceptExplainer>
+
+## Isaac Sim Workflows and Best Practices
+
+### Basic Isaac Sim Workflow
+
+1. **Scene Setup**: Create or load a USD scene with robot and environment
+2. **Sensor Configuration**: Add and configure sensors (LiDAR, cameras, IMU)
+3. **Physics Setup**: Configure collision properties and dynamics
+4. **Simulation Execution**: Run the simulation and collect data
+5. **Data Processing**: Process simulation data for training or validation
+
+<CodeExample
+  language="python"
+  title="Basic Isaac Sim Setup"
+  description="Python code to set up a basic Isaac Sim environment"
+  code={`import omni
+from omni.isaac.core import World
+from omni.isaac.core.utils.nucleus import get_assets_root_path
+from omni.isaac.core.utils.stage import add_reference_to_stage
+
+# Create a simulation world
+my_world = World(stage_units_in_meters=1.0)
+
+# Add a robot to the scene
+assets_root_path = get_assets_root_path()
+if assets_root_path is None:
+    print("Could not use Isaac Sim assets. Ensure Isaac Sim is installed.")
+else:
+    # Load a robot asset
+    add_reference_to_stage(
+        usd_path=assets_root_path + "/Isaac/Robots/Franka/franka.usd",
+        prim_path="/World/Robot"
+    )
+
+    # Add sensors to the robot
+    my_world.add_sensor("camera", "/World/Robot/base_link")
+    my_world.add_sensor("lidar", "/World/Robot/base_link")
+
+    # Reset and step the world
+    my_world.reset()
+    for i in range(1000):
+        my_world.step(render=True)`}
+/>
+
+## Sim-to-Real Transfer Techniques
+
+<ArchitectureDiagram
+  variant="communication"
+  title="Sim-to-Real Transfer Pipeline"
+  description="Shows the pipeline from simulation to real-world deployment"
+/>
+
+### Best Practices for Sim-to-Real Transfer
+
+1. **Domain Randomization**: Increase diversity in simulation to cover real-world variations
+2. **System Identification**: Model real-world physics and sensor characteristics
+3. **Progressive Domain Transfer**: Start with simple domains and gradually increase complexity
+4. **Reality Check**: Validate simulation results against real-world data
+
+## Isaac ROS Integration
+
+Isaac ROS provides hardware-accelerated perception and navigation packages that work seamlessly with Isaac Sim:
+
+<CodeExample
+  language="python"
+  title="Isaac ROS Node Example"
+  description="Example of an Isaac ROS node that processes sensor data"
+  code={`#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image
+from isaac_ros_messages.msg import FeatureArray
+
+class IsaacPerceptionNode(Node):
+    def __init__(self):
+        super().__init__('isaac_perception_node')
+
+        # Subscribe to camera image
+        self.image_sub = self.create_subscription(
+            Image,
+            '/camera/image_raw',
+            self.image_callback,
+            10
+        )
+
+        # Publish features
+        self.feature_pub = self.create_publisher(
+            FeatureArray,
+            '/features',
+            10
+        )
+
+    def image_callback(self, msg):
+        # Process image using Isaac ROS GEMs
+        features = self.extract_features(msg)
+        self.feature_pub.publish(features)`}
+/>
+
+## Summary
+
+This chapter introduced the NVIDIA Isaac ecosystem, focusing on Isaac Sim's capabilities for photorealistic simulation. We covered:
+
+- The key components of the Isaac platform
+- USD-based scene description and Omniverse integration
+- Domain randomization techniques for robust perception training
+- Comparison with Gazebo for different use cases
+- Basic Isaac Sim workflows and best practices
+- Sim-to-real transfer techniques
+- Isaac ROS integration
+
+The next chapter will dive deeper into Isaac ROS GEMs for accelerated perception.
+
+</ChapterLayout>

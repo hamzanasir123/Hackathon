@@ -1,0 +1,569 @@
+---
+title: Chapter 2 - Advanced Perception with Isaac ROS and Hardware Acceleration
+sidebar_label: Advanced Perception with Isaac ROS
+sidebar_position: 3
+description: Deep dive into Isaac ROS GEMs for accelerated perception, hardware acceleration, and sensor integration
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+import SimulationExample from '@site/src/components/SimulationExample';
+
+<ChapterLayout
+  title="Chapter 2 - Advanced Perception with Isaac ROS and Hardware Acceleration"
+  description="Deep dive into Isaac ROS GEMs for accelerated perception, hardware acceleration, and sensor integration"
+  previous={{path: '/docs/module-3-ai-robot-brain/overview-of-nvidia-isaac', title: 'Overview of NVIDIA Isaac'}}
+  next={{path: '/docs/module-3-ai-robot-brain/navigation-path-planning', title: 'Navigation and Path Planning'}}
+>
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Implement Isaac ROS GEMs for accelerated perception
+- Configure hardware acceleration on NVIDIA GPUs and Jetson platforms
+- Integrate multiple sensor types (RealSense, LiDAR, cameras, IMU)
+- Build perception pipelines for object detection, segmentation, and pose estimation
+- Optimize performance for humanoid robotics applications
+- Troubleshoot hardware acceleration issues
+
+## Isaac ROS GEMs Architecture
+
+<ConceptExplainer
+  concept="Isaac ROS GEMs"
+  analogy="Isaac ROS GEMs are like specialized hardware-accelerated modules that perform specific perception tasks efficiently."
+  description="Isaac ROS GEMs (GPU-accelerated modules) are optimized ROS 2 packages that leverage NVIDIA GPUs for accelerated perception and navigation tasks."
+  examples={[
+    "Visual SLAM for pose estimation",
+    "Stereo DNN for depth estimation",
+    "AprilTag for fiducial marker detection",
+    "Image Pipeline for accelerated image processing"
+  ]}
+  relatedConcepts={["GEMs", "GPU Acceleration", "Perception", "ROS 2"]}
+>
+
+### Key Isaac ROS GEMs
+
+- **Visual SLAM**: Visual-inertial SLAM for pose estimation
+- **Stereo DNN**: Stereo vision with deep neural networks
+- **AprilTag**: Fiducial marker detection
+- **Image Pipeline**: Hardware-accelerated image processing
+- **Object Detection**: Real-time object detection on GPU
+- **Segmentation**: Semantic and instance segmentation
+- **Depth Map Processing**: GPU-accelerated depth processing
+
+</ConceptExplainer>
+
+<ArchitectureDiagram
+  variant="components"
+  title="Isaac ROS GEMs Architecture"
+  description="Shows the architecture of Isaac ROS GEMs with GPU acceleration and sensor integration"
+/>
+
+## Visual SLAM Implementation
+
+Visual SLAM (Simultaneous Localization and Mapping) is crucial for autonomous navigation:
+
+<CodeExample
+  language="python"
+  title="Isaac ROS Visual SLAM Node"
+  description="Python example of using Isaac ROS Visual SLAM"
+  code={`#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image, Imu
+from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
+
+class IsaacVSLAMNode(Node):
+    def __init__(self):
+        super().__init__('isaac_vs_lam_node')
+
+        # Subscribe to stereo cameras and IMU
+        self.left_sub = self.create_subscription(
+            Image,
+            '/camera/left/image_rect_color',
+            self.left_image_callback,
+            10
+        )
+
+        self.right_sub = self.create_subscription(
+            Image,
+            '/camera/right/image_rect_color',
+            self.right_image_callback,
+            10
+        )
+
+        self.imu_sub = self.create_subscription(
+            Imu,
+            '/imu/data',
+            self.imu_callback,
+            10
+        )
+
+        # Publish pose and odometry
+        self.pose_pub = self.create_publisher(
+            PoseStamped,
+            '/visual_slam/pose',
+            10
+        )
+
+        self.odom_pub = self.create_publisher(
+            Odometry,
+            '/visual_slam/odometry',
+            10
+        )
+
+    def left_image_callback(self, msg):
+        # Process left camera image
+        pass
+
+    def right_image_callback(self, msg):
+        # Process right camera image
+        pass
+
+    def imu_callback(self, msg):
+        # Process IMU data for VSLAM
+        pass`}
+/>
+
+### Performance Considerations
+
+<SimulationExample
+  title="VSLAM Performance Optimization"
+  description="Configuration for optimizing VSLAM performance on Jetson platforms"
+  code={`# VSLAM configuration for Jetson
+compute_graph_config:
+  # Use TensorRT for inference acceleration
+  tensorrt_config:
+    precision: "fp16"
+    max_batch_size: 1
+    dynamic_shapes:
+      min_shape: [1, 3, 224, 224]
+      opt_shape: [1, 3, 480, 640]
+      max_shape: [1, 3, 480, 640]
+
+# Camera configuration for optimal VSLAM
+camera_config:
+  resolution: [640, 480]
+  frame_rate: 30
+  exposure_mode: "auto"
+  gain_range: [1.0, 8.0]
+
+# Processing pipeline optimization
+pipeline_config:
+  feature_detector:
+    max_features: 1000
+    quality_level: 0.01
+    min_distance: 10
+  tracker:
+    window_size: [21, 21]
+    max_level: 3
+  optimizer:
+    max_iterations: 30
+    tolerance: 1e-6`}
+  language="yaml"
+  simulationType="ros"
+>
+
+This configuration optimizes VSLAM for Jetson platforms with appropriate TensorRT settings and feature tracking parameters.
+
+</SimulationExample>
+
+## Stereo Vision Processing
+
+### Isaac ROS Stereo DNN
+
+<CodeExample
+  language="python"
+  title="Isaac ROS Stereo DNN Example"
+  description="Example of using Isaac ROS Stereo DNN for depth estimation"
+  code={`#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from stereo_msgs.msg import DisparityImage
+from sensor_msgs.msg import Image
+from isaac_ros_messages.msg import DenseDepth
+
+class IsaacStereoNode(Node):
+    def __init__(self):
+        super().__init__('isaac_stereo_node')
+
+        # Subscribe to stereo pair
+        self.left_sub = self.create_subscription(
+            Image,
+            '/camera/left/image_rect',
+            self.left_callback,
+            10
+        )
+
+        self.right_sub = self.create_subscription(
+            Image,
+            '/camera/right/image_rect',
+            self.right_callback,
+            10
+        )
+
+        # Publish dense depth map
+        self.depth_pub = self.create_publisher(
+            DenseDepth,
+            '/stereo/depth',
+            10
+        )
+
+    def left_callback(self, msg):
+        # Process left image
+        pass
+
+    def right_callback(self, msg):
+        # Process right image and compute disparity
+        pass`}
+/>
+
+## RealSense and LiDAR Integration
+
+<ArchitectureDiagram
+  variant="communication"
+  title="Sensor Integration Architecture"
+  description="Shows how different sensors integrate with Isaac ROS perception pipeline"
+/>
+
+### Intel RealSense Integration
+
+<CodeExample
+  language="yaml"
+  title="RealSense Configuration for Isaac ROS"
+  description="Configuration file for Intel RealSense camera integration"
+  code={`# RealSense configuration for Isaac ROS
+camera:
+  # Camera intrinsics
+  width: 640
+  height: 480
+  fps: 30
+  enable_color: true
+  enable_depth: true
+  enable_infra1: false
+  enable_infra2: false
+
+  # Depth settings
+  depth:
+    enable: true
+    units: "mm"
+    clipping_distance: [0.1, 10.0]  # meters
+
+  # Color settings
+  color:
+    enable: true
+    format: "RGB8"
+    width: 640
+    height: 480
+    fps: 30
+
+# Isaac ROS Image Pipeline settings
+image_pipeline:
+  # Enable hardware acceleration
+  hardware_acceleration: true
+  cuda_device: 0
+
+  # Image preprocessing
+  preprocessing:
+    rectification: true
+    undistortion: true
+    normalization: true
+
+# Calibration parameters
+calibration:
+  # Camera matrix
+  camera_matrix: [616.0627, 0.0, 313.8375, 0.0, 615.7902, 242.0593, 0.0, 0.0, 1.0]
+
+  # Distortion coefficients
+  distortion_coefficients: [-0.072, 0.039, 0.001, 0.001, 0.0]
+
+  # Rectification matrix
+  rectification_matrix: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+
+  # Projection matrix
+  projection_matrix: [616.0627, 0.0, 313.8375, 0.0, 0.0, 615.7902, 242.0593, 0.0, 0.0, 0.0, 1.0, 0.0]`}
+/>
+
+### LiDAR Integration
+
+<CodeExample
+  language="python"
+  title="LiDAR Processing with Isaac ROS"
+  description="Example of processing LiDAR data using Isaac ROS"
+  code={`#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import LaserScan, PointCloud2
+from std_msgs.msg import Header
+import numpy as np
+from sensor_msgs_py import point_cloud2
+
+class IsaacLidarNode(Node):
+    def __init__(self):
+        super().__init__('isaac_lidar_node')
+
+        # Subscribe to LiDAR data
+        self.lidar_sub = self.create_subscription(
+            LaserScan,
+            '/scan',
+            self.lidar_callback,
+            10
+        )
+
+        # Publish processed point cloud
+        self.cloud_pub = self.create_publisher(
+            PointCloud2,
+            '/lidar/point_cloud',
+            10
+        )
+
+        # Publish obstacle detection
+        self.obstacle_pub = self.create_publisher(
+            ObstacleArray,
+            '/lidar/obstacles',
+            10
+        )
+
+    def lidar_callback(self, msg):
+        # Convert LaserScan to PointCloud2
+        points = []
+        for i, range_val in enumerate(msg.ranges):
+            if msg.range_min <= range_val <= msg.range_max:
+                angle = msg.angle_min + i * msg.angle_increment
+                x = range_val * np.cos(angle)
+                y = range_val * np.sin(angle)
+                z = 0.0  # Assuming 2D LiDAR
+                points.append([x, y, z])
+
+        # Create PointCloud2 message
+        header = Header()
+        header.stamp = self.get_clock().now().to_msg()
+        header.frame_id = msg.header.frame_id
+
+        fields = [
+            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+        ]
+
+        cloud_msg = point_cloud2.create_cloud(header, fields, points)
+        self.cloud_pub.publish(cloud_msg)`}
+/>
+
+## Hardware Acceleration on Jetson Platforms
+
+<ConceptExplainer
+  concept="Jetson Hardware Acceleration"
+  description="NVIDIA Jetson platforms provide specialized hardware for AI and robotics acceleration including GPU, DLA, and ISP."
+  examples={[
+    "GPU for deep learning inference",
+    "DLA for power-efficient inference",
+    "ISP for image signal processing",
+    "CUDA cores for parallel processing"
+  ]}
+  relatedConcepts={["Jetson", "GPU", "DLA", "CUDA", "TensorRT"]}
+>
+
+### Jetson Platform Benefits
+
+- **Power Efficiency**: Optimized for mobile robotics applications
+- **AI Acceleration**: Dedicated hardware for deep learning inference
+- **Real-time Processing**: Low-latency perception and control
+- **Integration**: All-in-one solution for robotics compute
+
+</ConceptExplainer>
+
+### Performance Optimization Tips
+
+<CodeExample
+  language="bash"
+  title="Jetson Performance Configuration"
+  description="Shell script to configure Jetson for optimal perception performance"
+  code={`#!/bin/bash
+
+# Set Jetson to maximum performance mode
+sudo nvpmodel -m 0
+
+# Apply maximum clocks
+sudo jetson_clocks
+
+# Configure GPU memory
+echo "Configuring GPU memory..."
+sudo sh -c 'echo 1 > /sys/kernel/debug/bpmp/debug/clk/gpc0/force_on'
+
+# Set power mode for maximum performance
+sudo tegrastats --interval 1000 &
+
+# Optimize for Isaac ROS
+echo "Setting up Isaac ROS environment..."
+export CUDA_VISIBLE_DEVICES=0
+export NVIDIA_VISIBLE_DEVICES=all
+export NVIDIA_DRIVER_CAPABILITIES=compute,utility,video,graphics
+
+# Configure TensorRT
+export TENSORRT_INFER_LIB_PATH=/usr/lib/aarch64-linux-gnu/libnvinfer.so
+export TENSORRT_PLUGIN_LIB_PATH=/usr/lib/aarch64-linux-gnu/libnvinfer_plugin.so
+
+echo "Jetson configured for Isaac ROS perception pipeline"
+echo "GPU Memory: $(nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits)"
+echo "Temperature: $(cat /sys/class/thermal/thermal_zone0/temp | cut -c1-2)°C"`}
+/>
+
+## Perception Pipeline Architecture
+
+<ArchitectureDiagram
+  variant="advanced"
+  title="Isaac ROS Perception Pipeline"
+  description="Detailed architecture of Isaac ROS perception pipeline with GPU acceleration"
+  highlightElements={["image_pipeline", "vslam", "object_detection", "segmentation"]}
+/>
+
+### Building Perception Pipelines
+
+<CodeExample
+  language="python"
+  title="Complete Perception Pipeline"
+  description="Complete perception pipeline combining multiple Isaac ROS GEMs"
+  code={`#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image, CameraInfo
+from geometry_msgs.msg import PoseStamped
+from vision_msgs.msg import Detection2DArray
+from std_msgs.msg import Header
+
+class IsaacPerceptionPipeline(Node):
+    def __init__(self):
+        super().__init__('isaac_perception_pipeline')
+
+        # Initialize all perception components
+        self.vslam = self.initialize_vs_lam()
+        self.object_detector = self.initialize_object_detector()
+        self.segmentation = self.initialize_segmentation()
+        self.depth_processor = self.initialize_depth_processor()
+
+        # Subscribe to camera data
+        self.image_sub = self.create_subscription(
+            Image,
+            '/camera/image_rect_color',
+            self.process_image,
+            10
+        )
+
+        # Publish integrated perception results
+        self.perception_pub = self.create_publisher(
+            PerceptionResults,
+            '/perception/results',
+            10
+        )
+
+    def process_image(self, image_msg):
+        # Process through all perception modules
+        results = PerceptionResults()
+
+        # Run VSLAM for pose estimation
+        pose = self.vslam.estimate_pose(image_msg)
+        results.pose = pose
+
+        # Run object detection
+        detections = self.object_detector.detect_objects(image_msg)
+        results.detections = detections
+
+        # Run semantic segmentation
+        segmentation = self.segmentation.segment_image(image_msg)
+        results.segmentation = segmentation
+
+        # Process depth information
+        depth = self.depth_processor.process_depth(image_msg)
+        results.depth = depth
+
+        # Publish integrated results
+        header = Header()
+        header.stamp = self.get_clock().now().to_msg()
+        header.frame_id = 'camera_link'
+        results.header = header
+
+        self.perception_pub.publish(results)`}
+/>
+
+## Troubleshooting Hardware Acceleration
+
+<ConceptExplainer
+  concept="Hardware Acceleration Troubleshooting"
+  description="Common issues and solutions when working with hardware acceleration in Isaac ROS."
+  examples={[
+    "CUDA memory issues",
+    "GPU driver compatibility",
+    "TensorRT optimization problems",
+    "Performance bottlenecks"
+  ]}
+  relatedConcepts={["CUDA", "GPU", "Memory", "Performance"]}
+>
+
+### Common Issues and Solutions
+
+1. **CUDA Memory Issues**: Monitor GPU memory usage and optimize batch sizes
+2. **Driver Compatibility**: Ensure NVIDIA drivers match CUDA version
+3. **TensorRT Errors**: Verify model compatibility with TensorRT
+4. **Performance Bottlenecks**: Profile and optimize pipeline stages
+
+</ConceptExplainer>
+
+### Performance Monitoring
+
+<CodeExample
+  language="bash"
+  title="Performance Monitoring Script"
+  description="Script to monitor Isaac ROS perception pipeline performance"
+  code={`#!/bin/bash
+
+echo "Isaac ROS Perception Pipeline Performance Monitor"
+echo "==============================================="
+
+# Monitor GPU usage
+echo "GPU Status:"
+nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv
+
+echo ""
+echo "CUDA Memory Info:"
+nvidia-smi --query-gpu=memory.used,memory.free,memory.total --format=csv
+
+echo ""
+echo "Active Isaac ROS Nodes:"
+ros2 node list | grep -i "isaac"
+
+echo ""
+echo "Isaac ROS Topics:"
+ros2 topic list | grep -E "(image|camera|lidar|slam|detection)"
+
+echo ""
+echo "Pipeline Performance (Hz):"
+for topic in \$(ros2 topic list | grep -E "(image|camera|lidar|slam|detection)"); do
+    echo -n "\$topic: "
+    timeout 2 ros2 topic hz \$topic 2>/dev/null | head -1 | cut -d':' -f2
+done
+
+echo ""
+echo "System Resources:"
+top -bn1 | head -20`}
+/>
+
+## Summary
+
+This chapter covered advanced perception with Isaac ROS, including:
+
+- Isaac ROS GEMs architecture and key components
+- Visual SLAM implementation and optimization
+- Stereo vision processing with Isaac ROS Stereo DNN
+- RealSense and LiDAR integration techniques
+- Hardware acceleration on Jetson platforms
+- Complete perception pipeline architecture
+- Troubleshooting and performance optimization
+
+The next chapter will focus on navigation and path planning for bipedal humanoid robots using Nav2.
+
+</ChapterLayout>

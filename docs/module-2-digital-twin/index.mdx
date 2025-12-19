@@ -1,44 +1,36 @@
 ---
 sidebar_label: "Module 2: The Digital Twin (Gazebo & Unity)"
-sidebar_position: 1
+sidebar_position: 2
 title: "Module 2 - The Digital Twin (Gazebo & Unity)"
-description: "Creating virtual environments for robot simulation and testing"
+description: "Building and using digital twins for humanoid robots through physics simulation in Gazebo and high-fidelity visualization/human-robot interaction in Unity"
 ---
 
 # Module 2: The Digital Twin (Gazebo & Unity)
 
-This module focuses on digital twin technology for robotics, exploring how virtual environments can be used to simulate, test, and validate robotic systems before deploying them in the real world. We'll cover both Gazebo and Unity as simulation platforms.
+Welcome to Module 2 of the Physical AI & Humanoid Robotics course. This module introduces you to digital twins for humanoid robots, focusing on physics simulation in Gazebo and high-fidelity visualization/human-robot interaction in Unity. You'll learn how to build and use digital twins that simulate realistic physics, sensors (LiDAR, depth cameras, IMUs), and environments to bridge simulation to real-world deployment.
 
 ## Overview
 
 In this module, you will learn about:
 
-- Digital twin concepts and their application in robotics
-- Physics-based simulation with Gazebo
-- Game engine-based simulation with Unity
-- Sensor simulation and realistic environment modeling
-- Integration between simulation and real-world robotics
+- The concept of digital twins in Physical AI
+- Why accurate physics simulation is critical for humanoid robotics
+- How Gazebo serves as the physics engine and integrates with ROS 2
+- Comparison with other simulators
+- Using Unity for high-fidelity visualization and human-robot interaction
 
-## Learning Objectives
+## Module Structure
 
-After completing this module, you will be able to:
+This module is organized into three main chapters:
 
-- Create realistic simulation environments for robotic systems
-- Implement sensor simulation with appropriate noise models
-- Validate robotic algorithms in virtual environments
-- Transition from simulation to real-world deployment
-- Use simulation for safety testing and optimization
+1. [Introduction to Robot Simulation and the Role of Digital Twins](./introduction-to-digital-twins) - Explains the concept of digital twins in Physical AI, why accurate physics simulation is critical for humanoid robotics, overview of Gazebo as the physics engine and its integration with ROS 2, comparison with other simulators, and introduction to Unity for visualization and HRI
 
-## Topics Covered
+2. [Mastering Gazebo Simulation](./mastering-gazebo-simulation) - Hands-on setup of Gazebo environments; working with SDF and advanced URDF for simulation; adding physics properties, collisions, and plugins; simulating core sensors: LiDAR, depth cameras, RGB cameras, and IMUs; creating complex worlds with obstacles, furniture, and dynamic elements
 
-1. [Introduction to Digital Twins in Robotics](./introduction-to-digital-twins)
-2. [Gazebo Simulation Environment](./gazebo-simulation)
-3. [Unity for Robotics Simulation](./unity-robotics)
-4. [Sensor Simulation and Modeling](./sensor-simulation)
-5. [Simulation-to-Reality Transfer](./sim2real-transfer)
+3. [High-Fidelity Rendering and Human-Robot Interaction with Unity](./unity-integration) - Integrating ROS 2 with Unity for real-time visualization; using Unity for photorealistic rendering and human-robot interaction scenarios; bridging Gazebo physics with Unity visuals via ros_tcp_connector or similar; designing interactive environments for testing natural interactions; best practices for multi-simulator workflows
 
-:::tip
-Simulation is a crucial step in robotics development, allowing for rapid prototyping and testing without the risks associated with real-world experimentation.
+:::note
+This module builds upon the ROS 2 concepts learned in Module 1. Make sure you have a solid understanding of ROS 2 fundamentals before proceeding.
 :::
 
-Let's start by understanding the fundamental concepts of digital twins in robotics.
+Let's begin by exploring the fundamentals of digital twins and robot simulation.

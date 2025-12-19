@@ -54,6 +54,10 @@ const config = {
       href: '/css/educational-content.css',
       type: 'text/css',
     },
+    {
+      href: '/css/educational-components.css',
+      type: 'text/css',
+    },
   ],
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
@@ -160,7 +164,7 @@ const config = {
       headingIds: true,
     },
   },
-
+  
   // Add plugins as specified in contract
   plugins: [
     [

@@ -1,0 +1,967 @@
+---
+title: Example 3 - Perception Pipeline with Isaac ROS GEMs
+sidebar_label: Perception Pipeline
+sidebar_position: 8
+description: Implement Isaac ROS GEMs for perception, process sensor data with hardware acceleration
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import CodeExample from '@site/src/components/CodeExample';
+import SimulationExample from '@site/src/components/SimulationExample';
+
+<ChapterLayout
+  title="Example 3 - Perception Pipeline with Isaac ROS GEMs"
+  description="Implement Isaac ROS GEMs for perception, process sensor data with hardware acceleration"
+  previous={{path: '/docs/module-3-ai-robot-brain/examples/sensor-equipped-humanoid', title: 'Sensor-Equipped Humanoid'}}
+  next={{path: '/docs/module-3-ai-robot-brain/examples/full-navigation-stack', title: 'Full Navigation Stack'}}
+>
+
+## Overview
+
+This example demonstrates how to implement a complete perception pipeline using Isaac ROS GEMs (GPU-accelerated modules). We'll process the sensor data from the previous example through various perception algorithms including Visual SLAM, object detection, and depth processing, all accelerated using NVIDIA GPU hardware.
+
+## Learning Objectives
+
+After completing this example, you will be able to:
+
+- Implement Isaac ROS GEMs for perception processing
+- Configure hardware acceleration for perception pipelines
+- Process sensor data through multiple perception modules
+- Demonstrate Visual SLAM functionality
+- Perform object detection and pose estimation
+
+## Isaac ROS Perception Pipeline Architecture
+
+<SimulationExample
+  title="Perception Pipeline Architecture"
+  description="Complete architecture for Isaac ROS perception pipeline with GPU acceleration"
+  code={`# Isaac ROS Perception Pipeline Configuration
+perception_pipeline:
+  # Input sources from sensors
+  input_sources:
+    - name: "camera_left"
+      topic: "/camera/left/image_rect_color"
+      type: "image"
+      format: "rgb8"
+      resolution: [640, 480]
+      frame_rate: 30
+    - name: "camera_right"
+      topic: "/camera/right/image_rect_color"
+      type: "image"
+      format: "rgb8"
+      resolution: [640, 480]
+      frame_rate: 30
+    - name: "lidar"
+      topic: "/lidar/scan"
+      type: "pointcloud"
+      frame_rate: 10
+    - name: "imu"
+      topic: "/imu/data"
+      type: "imu"
+      frame_rate: 100
+
+  # Isaac ROS GEMs configuration
+  gems:
+    # Image Pipeline for preprocessing
+    image_pipeline:
+      name: "isaac_ros_image_pipeline"
+      enabled: true
+      parameters:
+        rectification: true
+        undistortion: true
+        normalization: true
+        hardware_acceleration: true
+        cuda_device: 0
+        tensor_rt_config:
+          precision: "fp16"
+          max_batch_size: 1
+          dynamic_shapes:
+            min_shape: [1, 3, 224, 224]
+            opt_shape: [1, 3, 480, 640]
+            max_shape: [1, 3, 480, 640]
+
+    # Visual SLAM for pose estimation
+    visual_slam:
+      name: "isaac_ros_visual_slam"
+      enabled: true
+      parameters:
+        enable_rectification: true
+        enable_debug_mode: false
+        map_frame: "map"
+        odom_frame: "odom"
+        base_frame: "base_link"
+        input_voxel: 0.01
+        path_max_size: 1000
+        enable_occupancy_map: true
+        enable_localization: true
+        enable_ground_truth: false
+        publish_pose_graph: true
+        publish_local_map: true
+        tensor_rt_engine: "fp16"
+        cuda_device: 0
+
+    # Stereo DNN for depth estimation
+    stereo_dnn:
+      name: "isaac_ros_stereo_dnn"
+      enabled: true
+      parameters:
+        input_type: "stereo"
+        network_type: "disparity"
+        confidence_threshold: 0.5
+        max_disparity: 64
+        disparity_range: [0.5, 10.0]
+        enable_decimation: true
+        decimation_factor: 2
+        tensor_rt_engine: "fp16"
+        cuda_device: 0
+
+    # AprilTag detection
+    apriltag:
+      name: "isaac_ros_apriltag"
+      enabled: true
+      parameters:
+        family: "tag36h11"
+        max_hamming: 0
+        quad_decimate: 2.0
+        quad_sigma: 0.0
+        refine_edges: 1
+        decode_sharpening: 0.25
+        min_tag_perimeter: 30
+        max_tag_perimeter: 1000000
+        output_frame: "camera_optical_frame"
+
+    # Object Detection
+    object_detection:
+      name: "isaac_ros_object_detection"
+      enabled: true
+      parameters:
+        model_type: "ssd"
+        input_tensor_layout: "NHWC"
+        engine_file_path: "/models/ssd_resnet18.engine"
+        input_binding_name: "input"
+        output_cov_name: "detection_covs"
+        output_bbox_name: "detection_boxes"
+        threshold: 0.5
+        max_batch_size: 1
+        tensor_rt_engine: "fp16"
+        cuda_device: 0
+
+    # Segmentation
+    segmentation:
+      name: "isaac_ros_segmentation"
+      enabled: true
+      parameters:
+        model_type: "unet"
+        engine_file_path: "/models/unet_segmentation.engine"
+        threshold: 0.5
+        colormap: "cityscapes"
+        tensor_rt_engine: "fp16"
+        cuda_device: 0
+
+  # Hardware acceleration settings
+  hardware_acceleration:
+    cuda:
+      device: 0
+      memory_pool_size: "512MB"
+      stream_priority: 0
+    tensor_rt:
+      precision: "fp16"
+      max_workspace_size: "1GB"
+      min_timing_iters: 1
+      avg_timing_iters: 8
+    dla:
+      enabled: false
+      core: 0
+
+  # Pipeline performance monitoring
+  performance_monitoring:
+    enabled: true
+    metrics:
+      - name: "gpu_utilization"
+        threshold: 80
+      - name: "memory_utilization"
+        threshold: 85
+      - name: "processing_latency"
+        threshold: 50  # ms
+      - name: "throughput"
+        threshold: 30  # Hz
+
+  # Output configuration
+  output:
+    pose: "/visual_slam/pose"
+    odometry: "/visual_slam/odometry"
+    map: "/visual_slam/map"
+    objects: "/object_detection/objects"
+    segmentation: "/segmentation/result"
+    depth: "/stereo/depth"
+    apriltags: "/apriltag/detections"`}
+  language="yaml"
+  simulationType="ros"
+>
+
+This configuration sets up a complete Isaac ROS perception pipeline with GPU acceleration for all processing modules.
+
+</SimulationExample>
+
+## Python Perception Pipeline Implementation
+
+<CodeExample
+  language="python"
+  title="Complete Perception Pipeline"
+  description="Python implementation of the complete Isaac ROS perception pipeline"
+  code={`#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image, PointCloud2, Imu, CameraInfo
+from stereo_msgs.msg import DisparityImage
+from geometry_msgs.msg import PoseStamped, TwistStamped
+from nav_msgs.msg import Odometry
+from vision_msgs.msg import Detection2DArray
+from std_msgs.msg import Header
+from cv_bridge import CvBridge
+import numpy as np
+import time
+from threading import Lock
+
+class IsaacPerceptionPipeline(Node):
+    def __init__(self):
+        super().__init__('isaac_perception_pipeline')
+
+        # Initialize CvBridge for image processing
+        self.bridge = CvBridge()
+        self.lock = Lock()
+
+        # Input subscribers
+        self.left_image_sub = self.create_subscription(
+            Image,
+            '/camera/left/image_rect_color',
+            self.left_image_callback,
+            10
+        )
+
+        self.right_image_sub = self.create_subscription(
+            Image,
+            '/camera/right/image_rect_color',
+            self.right_image_callback,
+            10
+        )
+
+        self.lidar_sub = self.create_subscription(
+            PointCloud2,
+            '/lidar/points',
+            self.lidar_callback,
+            10
+        )
+
+        self.imu_sub = self.create_subscription(
+            Imu,
+            '/imu/data',
+            self.imu_callback,
+            10
+        )
+
+        # Publishers for perception results
+        self.pose_pub = self.create_publisher(PoseStamped, '/visual_slam/pose', 10)
+        self.odom_pub = self.create_publisher(Odometry, '/visual_slam/odometry', 10)
+        self.detection_pub = self.create_publisher(Detection2DArray, '/object_detection/objects', 10)
+        self.depth_pub = self.create_publisher(Image, '/stereo/depth', 10)
+
+        # Isaac ROS GEMs (simulated for this example)
+        self.initialize_gems()
+
+        # Performance tracking
+        self.processing_times = []
+        self.frame_count = 0
+
+        # Timer for performance monitoring
+        self.timer = self.create_timer(1.0, self.performance_callback)
+
+    def initialize_gems(self):
+        """Initialize Isaac ROS GEMs (simulated for this example)"""
+        self.get_logger().info("Initializing Isaac ROS GEMs...")
+
+        # In a real implementation, these would be actual Isaac ROS nodes
+        # For simulation, we'll create placeholder functionality
+        self.image_pipeline = ImagePipeline()
+        self.visual_slam = VisualSLAM()
+        self.stereo_dnn = StereoDNN()
+        self.object_detector = ObjectDetector()
+
+        self.get_logger().info("Isaac ROS GEMs initialized successfully")
+
+    def left_image_callback(self, msg):
+        """Process left camera image"""
+        with self.lock:
+            self.frame_count += 1
+
+            # Start timing for performance measurement
+            start_time = time.time()
+
+            try:
+                # Convert ROS image to OpenCV
+                cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+
+                # Process through image pipeline
+                processed_image = self.image_pipeline.process(cv_image)
+
+                # If we have a right image ready, process stereo pair
+                if hasattr(self, 'right_image_buffer') and self.right_image_buffer is not None:
+                    stereo_result = self.stereo_dnn.process(processed_image, self.right_image_buffer)
+                    self.publish_depth(stereo_result)
+                    self.right_image_buffer = None  # Clear buffer after use
+
+                # Store image for stereo processing
+                self.left_image_buffer = processed_image
+
+                # Calculate processing time
+                processing_time = time.time() - start_time
+                self.processing_times.append(processing_time)
+
+                if self.frame_count % 30 == 0:  # Log every 30 frames
+                    avg_time = np.mean(self.processing_times[-30:])
+                    self.get_logger().info(f"Frame {self.frame_count}: Processing time = {avg_time*1000:.2f}ms")
+
+            except Exception as e:
+                self.get_logger().error(f"Error processing left image: {e}")
+
+    def right_image_callback(self, msg):
+        """Process right camera image"""
+        with self.lock:
+            try:
+                # Convert ROS image to OpenCV
+                cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+
+                # Store for stereo processing with left image
+                self.right_image_buffer = cv_image
+
+            except Exception as e:
+                self.get_logger().error(f"Error processing right image: {e}")
+
+    def lidar_callback(self, msg):
+        """Process LiDAR data"""
+        with self.lock:
+            try:
+                # Process LiDAR data for obstacle detection
+                obstacles = self.process_lidar_data(msg)
+
+                # Publish obstacle information
+                # In a real implementation, this would be more sophisticated
+                self.get_logger().debug(f"Processed LiDAR data: {len(obstacles)} obstacles detected")
+
+            except Exception as e:
+                self.get_logger().error(f"Error processing LiDAR: {e}")
+
+    def imu_callback(self, msg):
+        """Process IMU data for Visual SLAM"""
+        with self.lock:
+            try:
+                # Process IMU data for pose estimation
+                imu_data = {
+                    'linear_acceleration': [msg.linear_acceleration.x,
+                                           msg.linear_acceleration.y,
+                                           msg.linear_acceleration.z],
+                    'angular_velocity': [msg.angular_velocity.x,
+                                        msg.angular_velocity.y,
+                                        msg.angular_velocity.z]
+                }
+
+                # Integrate with Visual SLAM
+                pose = self.visual_slam.update_imu(imu_data)
+
+                if pose:
+                    self.publish_pose(pose)
+
+            except Exception as e:
+                self.get_logger().error(f"Error processing IMU: {e}")
+
+    def process_lidar_data(self, msg):
+        """Process LiDAR point cloud data"""
+        # In a real implementation, this would interface with Isaac ROS LiDAR processing
+        # For simulation, we'll just count points
+        import sensor_msgs_py.point_cloud2 as pc2
+        points = list(pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True))
+        return points
+
+    def publish_pose(self, pose_data):
+        """Publish pose estimation result"""
+        pose_msg = PoseStamped()
+        pose_msg.header.stamp = self.get_clock().now().to_msg()
+        pose_msg.header.frame_id = 'map'
+        pose_msg.pose.position.x = pose_data['position'][0]
+        pose_msg.pose.position.y = pose_data['position'][1]
+        pose_msg.pose.position.z = pose_data['position'][2]
+        pose_msg.pose.orientation.w = pose_data['orientation'][0]
+        pose_msg.pose.orientation.x = pose_data['orientation'][1]
+        pose_msg.pose.orientation.y = pose_data['orientation'][2]
+        pose_msg.pose.orientation.z = pose_data['orientation'][3]
+
+        self.pose_pub.publish(pose_msg)
+
+    def publish_depth(self, depth_data):
+        """Publish depth map result"""
+        depth_msg = self.bridge.cv2_to_imgmsg(depth_data, '32FC1')
+        depth_msg.header.stamp = self.get_clock().now().to_msg()
+        depth_msg.header.frame_id = 'camera_depth_optical_frame'
+
+        self.depth_pub.publish(depth_msg)
+
+    def performance_callback(self):
+        """Monitor pipeline performance"""
+        if len(self.processing_times) >
+            avg_time =
+            avg_time = np.mean(self.processing_times[-100:])  # Last 100 samples
+            fps = 1.0 / avg_time if avg_time > 0 else 0
+
+            self.get_logger().info(
+                f"Pipeline Performance - Avg processing time: {avg_time*1000:.2f}ms, "
+                f"FPS: {fps:.2f}, Total frames: {self.frame_count}"
+            )
+
+class ImagePipeline:
+    """Simulated Isaac ROS Image Pipeline"""
+    def __init__(self):
+        pass
+
+    def process(self, image):
+        """Process image through pipeline"""
+        # Simulate image rectification, undistortion, normalization
+        return image  # In real implementation, actual processing would occur
+
+class VisualSLAM:
+    """Simulated Isaac ROS Visual SLAM"""
+    def __init__(self):
+        self.position = [0.0, 0.0, 0.0]
+        self.orientation = [1.0, 0.0, 0.0, 0.0]  # w, x, y, z quaternion
+
+    def update_imu(self, imu_data):
+        """Update pose based on IMU data"""
+        # Simulate pose estimation
+        import random
+        self.position[0] += random.uniform(-0.01, 0.01)
+        self.position[1] += random.uniform(-0.01, 0.01)
+
+        return {
+            'position': self.position.copy(),
+            'orientation': self.orientation.copy()
+        }
+
+class StereoDNN:
+    """Simulated Isaac ROS Stereo DNN"""
+    def __init__(self):
+        pass
+
+    def process(self, left_image, right_image):
+        """Process stereo pair to generate depth map"""
+        # Simulate depth estimation
+        height, width = left_image.shape[:2]
+        depth_map = np.random.rand(height, width).astype(np.float32) * 10.0  # 0-10m depth
+        return depth_map
+
+class ObjectDetector:
+    """Simulated Isaac ROS Object Detection"""
+    def __init__(self):
+        pass
+
+    def detect(self, image):
+        """Detect objects in image"""
+        # Simulate object detection
+        return []  # Return list of detected objects
+
+def main(args=None):
+    rclpy.init(args=args)
+    pipeline = IsaacPerceptionPipeline()
+
+    try:
+        rclpy.spin(pipeline)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        pipeline.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Launch File Configuration
+
+<CodeExample
+  language="xml"
+  title="Perception Pipeline Launch File"
+  description="ROS 2 launch file for the complete perception pipeline"
+  code={`<?xml version="1.0"?>
+<launch>
+  <!-- Arguments -->
+  <arg name="use_sim_time" default="true"/>
+  <arg name="camera_namespace" default="/camera"/>
+  <arg name="lidar_namespace" default="/lidar"/>
+  <arg name="cuda_device" default="0"/>
+
+  <!-- Isaac ROS Image Pipeline -->
+  <node pkg="isaac_ros_image_pipeline" exec="isaac_ros_image_rectification" name="image_rectification" output="screen">
+    <param name="use_sim_time" value="\$(var use_sim_time)"/>
+    <param name="left_camera_namespace" value="\$(var camera_namespace)/left"/>
+    <param name="right_camera_namespace" value="\$(var camera_namespace)/right"/>
+    <param name="left_rect_camera_namespace" value="\$(var camera_namespace)/left_rect"/>
+    <param name="right_rect_camera_namespace" value="\$(var camera_namespace)/right_rect"/>
+    <param name="alpha" value="0.0"/>
+    <param name="queue_size" value="1"/>
+  </node>
+
+  <!-- Isaac ROS Visual SLAM -->
+  <node pkg="isaac_ros_visual_slam" exec="slam_node" name="visual_slam_node" output="screen">
+    <param name="use_sim_time" value="\$(var use_sim_time)"/>
+    <param name="enable_rectification" value="true"/>
+    <param name="input_voxel" value="0.01"/>
+    <param name="path_max_size" value="1000"/>
+    <param name="enable_occupancy_map" value="true"/>
+    <param name="enable_localization" value="true"/>
+    <param name="map_frame" value="map"/>
+    <param name="odom_frame" value="odom"/>
+    <param name="base_frame" value="base_link"/>
+    <param name="sensor_qos" value="SENSOR_DATA"/>
+  </node>
+
+  <!-- Isaac ROS Stereo DNN -->
+  <node pkg="isaac_ros_stereo_dnn" exec="isaac_ros_stereo_dnn" name="stereo_dnn" output="screen">
+    <param name="use_sim_time" value="\$(var use_sim_time)"/>
+    <param name="input_type" value="stereo"/>
+    <param name="network_type" value="disparity"/>
+    <param name="confidence_threshold" value="0.5"/>
+    <param name="max_disparity" value="64"/>
+    <param name="tensor_rt_engine" value="fp16"/>
+    <param name="cuda_device" value="\$(var cuda_device)"/>
+  </node>
+
+  <!-- Isaac ROS AprilTag -->
+  <node pkg="isaac_ros_apriltag" exec="apriltag_node" name="apriltag" output="screen">
+    <param name="use_sim_time" value="\$(var use_sim_time)"/>
+    <param name="family" value="tag36h11"/>
+    <param name="max_hamming" value="0"/>
+    <param name="quad_decimate" value="2.0"/>
+    <param name="refine_edges" value="1"/>
+    <param name="publish_pose" value="true"/>
+  </node>
+
+  <!-- Isaac ROS Object Detection -->
+  <node pkg="isaac_ros_object_detection" exec="isaac_ros_object_detection" name="object_detection" output="screen">
+    <param name="use_sim_time" value="\$(var use_sim_time)"/>
+    <param name="model_type" value="ssd"/>
+    <param name="input_tensor_layout" value="NHWC"/>
+    <param name="threshold" value="0.5"/>
+    <param name="tensor_rt_engine" value="fp16"/>
+    <param name="cuda_device" value="\$(var cuda_device)"/>
+  </node>
+
+  <!-- Perception Pipeline Monitor -->
+  <node pkg="isaac_perception_examples" exec="perception_monitor" name="perception_monitor" output="screen">
+    <param name="use_sim_time" value="\$(var use_sim_time)"/>
+    <param name="monitor_rate" value="1.0"/>
+  </node>
+
+</launch>`}
+/>
+
+## VSLAM Implementation and Testing
+
+<SimulationExample
+  title="VSLAM Testing Configuration"
+  description="Configuration for testing Visual SLAM functionality with Isaac ROS"
+  code={`# Visual SLAM Testing Configuration
+vslam_testing:
+  # Test environment setup
+  environment:
+    name: "vslam_test_room"
+    features: ["corners", "furniture", "textured_walls", "fiducial_markers"]
+    size: [10.0, 8.0, 3.0]  # width, depth, height in meters
+    lighting: "natural"
+
+  # Robot trajectory for testing
+  trajectory:
+    type: "figure_eight"
+    speed: 0.5  # m/s
+    duration: 60.0  # seconds
+    waypoints:
+      - [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]  # x, y, z, qw, qx, qy, qz
+      - [2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+      - [2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+      - [0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+  # VSLAM configuration for testing
+  vslam_config:
+    # Feature tracking parameters
+    feature_detector:
+      max_features: 1000
+      quality_level: 0.01
+      min_distance: 10
+      block_size: 7
+      k: 0.04
+
+    # Tracking parameters
+    tracker:
+      window_size: [21, 21]
+      max_level: 3
+      criteria: [30, 0.01]
+      min_eigenvalue: 0.001
+
+    # Optimizer parameters
+    optimizer:
+      max_iterations: 30
+      tolerance: 1e-6
+      huber_delta: 1.0
+
+    # Loop closure parameters
+    loop_closure:
+      enable: true
+      detection_frequency: 5.0  # Hz
+      similarity_threshold: 0.7
+      geometric_verification: true
+
+  # Ground truth for evaluation
+  ground_truth:
+    source: "motion_capture"
+    frequency: 100.0  # Hz
+    accuracy: 0.001  # meters
+
+  # Evaluation metrics
+  evaluation_metrics:
+    absolute_trajectory_error:
+      threshold: 0.1  # meters
+    relative_pose_error:
+      rotation_threshold: 2.0  # degrees
+      translation_threshold: 0.05  # meters
+    mapping_accuracy:
+      point_cloud_overlap: 0.8
+      feature_match_ratio: 0.9
+
+  # Performance requirements
+  performance_requirements:
+    processing_rate: 30.0  # Hz
+    cpu_usage: 80.0  # percent
+    gpu_usage: 85.0  # percent
+    memory_usage: 2.0  # GB
+
+  # Test scenarios
+  test_scenarios:
+    - name: "static_accuracy"
+      duration: 30.0
+      description: "Test accuracy with static camera"
+    - name: "dynamic_tracking"
+      duration: 60.0
+      description: "Test tracking with moving camera"
+    - name: "loop_closure"
+      duration: 120.0
+      description: "Test loop closure detection"
+    - name: "relocalization"
+      duration: 45.0
+      description: "Test relocalization capability"
+
+  # Failure detection
+  failure_detection:
+    tracking_loss:
+      threshold: 0.5  # seconds without tracking
+    drift_detection:
+      threshold: 0.5  # meters of accumulated error
+    initialization_failure:
+      timeout: 10.0  # seconds to initialize`}
+  language="yaml"
+  simulationType="isaac_sim"
+>
+
+This configuration provides a comprehensive setup for testing Visual SLAM functionality with Isaac ROS, including evaluation metrics and test scenarios.
+
+</SimulationExample>
+
+## Object Detection and Pose Estimation
+
+<CodeExample
+  language="python"
+  title="Object Detection and Pose Estimation"
+  description="Implementation of object detection and pose estimation using Isaac ROS"
+  code={`#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image
+from vision_msgs.msg import Detection2DArray, ObjectHypothesisWithPose
+from geometry_msgs.msg import PoseStamped, Point, Vector3
+from std_msgs.msg import Header
+from cv_bridge import CvBridge
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
+class IsaacObjectDetectionNode(Node):
+    def __init__(self):
+        super().__init__('isaac_object_detection')
+
+        # Initialize CvBridge
+        self.bridge = CvBridge()
+
+        # Subscribers
+        self.image_sub = self.create_subscription(
+            Image,
+            '/camera/image_rect_color',
+            self.image_callback,
+            10
+        )
+
+        # Publishers
+        self.detection_pub = self.create_publisher(
+            Detection2DArray,
+            '/isaac_ros_detection/detections',
+            10
+        )
+
+        self.pose_pub = self.create_publisher(
+            PoseStamped,
+            '/object_pose/estimated',
+            10
+        )
+
+        # Camera intrinsic parameters (should match your camera calibration)
+        self.camera_matrix = np.array([
+            [616.0627, 0.0, 313.8375],
+            [0.0, 615.7902, 242.0593],
+            [0.0, 0.0, 1.0]
+        ])
+
+        # Object database (in a real implementation, this would come from Isaac ROS)
+        self.object_database = {
+            'person': {'size': [0.6, 0.6, 1.7]},  # width, height, depth in meters
+            'chair': {'size': [0.5, 0.5, 0.8]},
+            'table': {'size': [1.0, 0.6, 0.75]},
+            'bottle': {'size': [0.1, 0.1, 0.25]}
+        }
+
+        self.get_logger().info("Isaac Object Detection Node initialized")
+
+    def image_callback(self, msg):
+        """Process image for object detection"""
+        try:
+            # Convert ROS image to OpenCV
+            cv_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+
+            # In a real Isaac ROS implementation, this would call the actual detection GEM
+            # For this example, we'll simulate detection results
+            detections = self.simulate_object_detection(cv_image)
+
+            # Publish detections
+            self.publish_detections(detections, msg.header)
+
+            # Estimate poses for detected objects
+            for detection in detections.detections:
+                pose = self.estimate_object_pose(detection, msg.header)
+                if pose:
+                    self.pose_pub.publish(pose)
+
+        except Exception as e:
+            self.get_logger().error(f"Error in image callback: {e}")
+
+    def simulate_object_detection(self, image):
+        """Simulate object detection (in real implementation, this uses Isaac ROS GEMs)"""
+        from vision_msgs.msg import Detection2D, BoundingBox2D
+
+        # Create mock detections
+        detections_msg = Detection2DArray()
+        detections_msg.header.stamp = self.get_clock().now().to_msg()
+        detections_msg.header.frame_id = 'camera_link'
+
+        # Simulate detecting a person in the center of the image
+        detection = Detection2D()
+        detection.header.stamp = detections_msg.header.stamp
+        detection.header.frame_id = detections_msg.header.frame_id
+
+        # Bounding box (in real implementation, this comes from the detector)
+        bbox = BoundingBox2D()
+        bbox.center.x = image.shape[1] / 2  # Center of image
+        bbox.center.y = image.shape[0] / 2
+        bbox.size_x = 200  # pixels
+        bbox.size_y = 400  # pixels
+        detection.bbox = bbox
+
+        # Detection result
+        hypothesis = ObjectHypothesisWithPose()
+        hypothesis.hypothesis.class_id = "person"
+        hypothesis.hypothesis.score = 0.95
+        detection.results = [hypothesis]
+
+        detections_msg.detections = [detection]
+
+        # Add more simulated detections
+        for i in range(2):
+            detection = Detection2D()
+            detection.header.stamp = detections_msg.header.stamp
+            detection.header.frame_id = detections_msg.header.frame_id
+
+            bbox = BoundingBox2D()
+            bbox.center.x = 100 + i * 300
+            bbox.center.y = 200
+            bbox.size_x = 150
+            bbox.size_y = 150
+            detection.bbox = bbox
+
+            hypothesis = ObjectHypothesisWithPose()
+            hypothesis.hypothesis.class_id = "chair" if i % 2 == 0 else "bottle"
+            hypothesis.hypothesis.score = 0.85 if i % 2 == 0 else 0.78
+            detection.results = [hypothesis]
+
+            detections_msg.detections.append(detection)
+
+        return detections_msg
+
+    def estimate_object_pose(self, detection, header):
+        """Estimate 3D pose of detected object"""
+        # Get bounding box center in pixels
+        center_x = detection.bbox.center.x
+        center_y = detection.bbox.center.y
+
+        # Get object class
+        class_id = detection.results[0].hypothesis.class_id if detection.results else "unknown"
+
+        # Get object size from database
+        if class_id in self.object_database:
+            obj_size = self.object_database[class_id]['size']
+        else:
+            obj_size = [0.5, 0.5, 0.5]  # default size
+
+        # Estimate distance using size-based method
+        # This is a simplified approach - real implementation would use more sophisticated methods
+        image_width = 640  # Assuming 640x480 image
+        focal_length = self.camera_matrix[0, 0]  # fx from camera matrix
+
+        # Approximate distance using bounding box size and known object size
+        bbox_size_pixels = min(detection.bbox.size_x, detection.bbox.size_y)
+        known_width_meters = obj_size[0]  # Use width for distance estimation
+
+        # Distance estimation (simplified)
+        distance = (known_width_meters * focal_length) / bbox_size_pixels if bbox_size_pixels > 0 else 5.0
+
+        # Calculate 3D position using pinhole camera model
+        x = (center_x - self.camera_matrix[0, 2]) * distance / self.camera_matrix[0, 0]
+        y = (center_y - self.camera_matrix[1, 2]) * distance / self.camera_matrix[1, 1]
+        z = distance
+
+        # Create pose message
+        pose_msg = PoseStamped()
+        pose_msg.header = header
+        pose_msg.pose.position.x = x
+        pose_msg.pose.position.y = y
+        pose_msg.pose.position.z = z
+
+        # Set orientation (assuming object is upright relative to camera)
+        pose_msg.pose.orientation.w = 1.0
+        pose_msg.pose.orientation.x = 0.0
+        pose_msg.pose.orientation.y = 0.0
+        pose_msg.pose.orientation.z = 0.0
+
+        return pose_msg
+
+    def publish_detections(self, detections, header):
+        """Publish detection results"""
+        detections.header = header
+        self.detection_pub.publish(detections)
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = IsaacObjectDetectionNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Performance Optimization and Troubleshooting
+
+<CodeExample
+  language="bash"
+  title="Perception Pipeline Performance Optimization"
+  description="Script to optimize and troubleshoot Isaac ROS perception pipeline performance"
+  code={`#!/bin/bash
+
+echo "Isaac ROS Perception Pipeline Optimization and Troubleshooting"
+echo "=============================================================="
+
+# Check GPU status
+echo "GPU Status:"
+nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv
+
+echo ""
+echo "CUDA Environment:"
+echo "CUDA_VISIBLE_DEVICES: \${CUDA_VISIBLE_DEVICES:-Not set}"
+echo "NVIDIA_VISIBLE_DEVICES: \${NVIDIA_VISIBLE_DEVICES:-Not set}"
+
+echo ""
+echo "Isaac ROS Nodes Status:"
+ros2 node list | grep -E "(isaac|perception|slam|detection|stereo|image)"
+
+echo ""
+echo "Perception Pipeline Topics:"
+for topic in \$(ros2 topic list | grep -E "(isaac|perception|slam|detection|stereo|image)"); do
+    echo -n "  \$topic: "
+    timeout 2 ros2 topic hz \$topic 2>/dev/null | head -1 | cut -d':' -f2 || echo "No data"
+done
+
+echo ""
+echo "Pipeline Performance Analysis:"
+echo "1. Check for bottlenecks by comparing input/output rates"
+echo "2. Monitor GPU utilization during operation"
+echo "3. Verify TensorRT engine optimization"
+
+echo ""
+echo "Memory Usage Analysis:"
+if command -v ros2 &> /dev/null; then
+    ros2 run isaac_ros_examples memory_monitor
+else
+    echo "ROS 2 not available"
+fi
+
+echo ""
+echo "Common Performance Issues and Solutions:"
+echo ""
+echo "Issue: High GPU memory usage"
+echo "Solution: Reduce batch size or use model quantization"
+echo ""
+echo "Issue: Low processing rate"
+echo "Solution: Optimize TensorRT engine or reduce input resolution"
+echo ""
+echo "Issue: Data synchronization problems"
+echo "Solution: Check sensor timestamps and adjust queue sizes"
+echo ""
+echo "Issue: Detection accuracy degradation"
+echo "Solution: Verify camera calibration and lighting conditions"
+
+echo ""
+echo "TensorRT Engine Optimization:"
+if [ -f "/usr/local/cuda/bin/trtexec" ]; then
+    echo "✓ TensorRT tools available"
+    echo "To optimize engine: trtexec --onnx=model.onnx --saveEngine=model.engine"
+else
+    echo "✗ TensorRT tools not available"
+fi
+
+echo ""
+echo "Run 'ros2 launch isaac_ros_examples perception_pipeline.launch.py' to start pipeline"
+echo "Use 'rqt_plot' to visualize pipeline performance metrics"
+echo "Check logs in ~/.nvidia-omniverse/logs/ for detailed diagnostics"`}
+/>
+
+## Summary
+
+This example implemented a complete perception pipeline using Isaac ROS GEMs:
+
+- Configured the full Isaac ROS perception pipeline with GPU acceleration
+- Implemented Visual SLAM for pose estimation and mapping
+- Added stereo processing for depth estimation
+- Integrated object detection and pose estimation
+- Provided performance optimization and troubleshooting guidance
+- Created launch files for easy deployment
+
+The next example will integrate this perception pipeline with the navigation system to create a complete autonomous humanoid robot system.
+
+</ChapterLayout>

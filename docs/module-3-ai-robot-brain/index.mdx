@@ -1,44 +1,58 @@
 ---
-sidebar_label: "Module 3: The AI-Robot Brain (NVIDIA Isaac™)"
-sidebar_position: 1
 title: "Module 3 - The AI-Robot Brain (NVIDIA Isaac™)"
-description: "Developing intelligent control systems for humanoid robots"
+sidebar_label: "Module 3: AI-Robot Brain"
+sidebar_position: 5
+description: "Leveraging the NVIDIA Isaac platform for advanced perception, photorealistic simulation, synthetic data generation, and navigation for humanoid robots"
 ---
+
 
 # Module 3: The AI-Robot Brain (NVIDIA Isaac™)
 
-This module delves into the artificial intelligence components that serve as the "brain" of humanoid robots. We'll explore NVIDIA Isaac™ and other AI frameworks that enable robots to perceive, reason, and act intelligently in complex environments.
-
-## Overview
-
-In this module, you will learn about:
-
-- AI frameworks for robotics, with focus on NVIDIA Isaac™
-- Perception systems for environment understanding
-- Planning and decision-making algorithms
-- Learning systems for adaptive behavior
-- Integration of AI with robotic control systems
+Welcome to Module 3 of the Physical AI and Humanoid Robotics course. This module focuses on leveraging the NVIDIA Isaac platform for advanced perception, photorealistic simulation, synthetic data generation, hardware-accelerated robotics pipelines, Visual SLAM (VSLAM), navigation, and path planning tailored to bipedal humanoid robots.
 
 ## Learning Objectives
 
-After completing this module, you will be able to:
+By the end of this module, you will be able to:
 
-- Implement perception systems for robotic applications
-- Design planning and decision-making algorithms
-- Create learning systems for adaptive robotic behavior
-- Integrate AI components with robotic control systems
-- Optimize AI models for real-time robotic applications
+- Understand the NVIDIA Isaac ecosystem including Isaac Sim and Isaac ROS
+- Explain photorealistic simulation with Omniverse and domain randomization
+- Implement Isaac ROS GEMs for accelerated perception (VSLAM, stereo vision, depth processing)
+- Configure hardware-accelerated pipelines on NVIDIA GPUs/Jetsons
+- Integrate RealSense and LiDAR data processing in Isaac ROS workflows
+- Build perception pipelines for object detection, segmentation, and pose estimation in humanoid contexts
+- Configure Nav2 stack specifically for bipedal humanoid navigation
+- Explain global and local costmaps for dynamic environments with bipedal constraints
+- Integrate perception outputs into navigation systems
+- Test humanoid navigation in complex simulated indoor scenarios
+- Apply best practices for sim-to-real navigation transfer
 
-## Topics Covered
+## Prerequisites
 
-1. [Introduction to AI for Robotics](./introduction-to-ai-for-robotics)
-2. [NVIDIA Isaac™ Framework](./nvidia-isaac-framework)
-3. [Perception Systems](./perception-systems)
-4. [Planning and Decision Making](./planning-and-decision-making)
-5. [Learning and Adaptation](./learning-and-adaptation)
+Before starting this module, you should have:
 
-:::warning
-AI systems for robotics require careful consideration of safety, reliability, and real-time performance constraints.
-:::
+- Completed Module 1 (The Robotic Nervous System - ROS 2)
+- Completed Module 2 (The Digital Twin - Gazebo & Unity)
+- Intermediate Python programming skills
+- Basic understanding of deep learning concepts
+- Familiarity with simulation environments from previous modules
 
-Let's begin by exploring the fundamentals of AI for robotics.
+## Module Structure
+
+This module is organized into three main chapters:
+
+1. **Chapter 1: Overview of NVIDIA Isaac Platform and Isaac Sim** - Introduction to the Isaac ecosystem, photorealistic simulation, domain randomization, and sim-to-real transfer techniques.
+
+2. **Chapter 2: Advanced Perception with Isaac ROS and Hardware Acceleration** - Deep dive into Isaac ROS GEMs for perception, hardware acceleration, and sensor integration.
+
+3. **Chapter 3: Navigation and Path Planning for Bipedal Humanoids with Nav2** - Configuring Nav2 for humanoid-specific navigation and integrating perception with navigation.
+
+## What You'll Build
+
+Throughout this module, you'll work with four progressively complex Isaac Sim examples:
+
+1. Basic Asset Loading - Load humanoid robot model in Isaac Sim
+2. Sensor-Equipped Humanoid - Add sensors to the humanoid model
+3. Perception Pipeline - Implement Isaac ROS GEMs for perception
+4. Full Navigation Stack - Integrate Nav2 with Isaac Sim for complete navigation
+
+Let's begin with [Chapter 1: Overview of NVIDIA Isaac Platform and Isaac Sim](./overview-of-nvidia-isaac).

@@ -1,0 +1,967 @@
+---
+title: High-Fidelity Rendering and Human-Robot Interaction with Unity
+sidebar_label: Unity Integration
+sidebar_position: 4
+description: Integrating ROS 2 with Unity for real-time visualization, photorealistic rendering, and human-robot interaction scenarios
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+import SimulationExample from '@site/src/components/SimulationExample';
+
+<ChapterLayout
+  title="High-Fidelity Rendering and Human-Robot Interaction with Unity"
+  description="Integrating ROS 2 with Unity for real-time visualization, photorealistic rendering, and human-robot interaction scenarios"
+  previous={{path: '/docs/module-2-digital-twin/mastering-gazebo-simulation', title: 'Mastering Gazebo Simulation'}}
+  next={{path: '/docs/module-3-ai-robot-brain', title: 'Module 3: AI-Robot Brain'}}
+>
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Integrate ROS 2 with Unity for real-time visualization
+- Use Unity for photorealistic rendering and human-robot interaction scenarios
+- Bridge Gazebo physics with Unity visuals via ros_tcp_connector or similar
+- Design interactive environments for testing natural interactions
+- Implement best practices for multi-simulator workflows
+- Create VR/AR interfaces for robot teleoperation
+
+## Unity for Robotics Overview
+
+### Introduction to Unity Robotics Hub
+
+<ConceptExplainer
+  concept="Unity Robotics Hub"
+  analogy="Unity Robotics Hub is like a bridge connecting the physical world of robotics with the virtual world of high-fidelity graphics and interaction."
+  description="Unity Robotics Hub provides tools and packages for integrating Unity with robotics frameworks like ROS and ROS 2, enabling high-fidelity simulation, visualization, and human-robot interaction."
+  examples={[
+    "Real-time robot visualization with photorealistic rendering",
+    "VR/AR interfaces for robot teleoperation",
+    "Synthetic data generation for AI training",
+    "Human-robot interaction prototyping"
+  ]}
+  relatedConcepts={["Unity", "ROS", "Robotics", "Visualization", "HRI", "VR", "AR"]}
+>
+
+### Key Components of Unity Robotics Hub
+
+- **ROS TCP Connector**: Communication bridge between ROS/ROS 2 and Unity
+- **Unity Perception Package**: Tools for synthetic data generation
+- **Unity Robotics Package**: ROS message definitions and utilities
+- **Simulation Framework**: Tools for creating complex simulation scenarios
+
+</ConceptExplainer>
+
+### Installing Unity and Robotics Packages
+
+<CodeExample
+  language="bash"
+  title="Installing Unity Hub and Unity Editor"
+  description="Steps to install Unity Hub and the Unity Editor with necessary packages for robotics"
+  code={`# 1. Download Unity Hub from Unity's website
+# Visit https://unity.com/download and download Unity Hub
+
+# 2. Install Unity Hub and launch it
+# Unity Hub manages multiple Unity versions and projects
+
+# 3. Install Unity Editor version 2022.3 LTS or later
+# This is the recommended version for robotics applications
+
+# 4. Create a new 3D project or open an existing one
+
+# 5. In Unity, open Package Manager (Window > Package Manager)
+# Install the following packages:
+# - ROS TCP Connector
+# - Unity Perception (for synthetic data generation)
+# - Universal Render Pipeline (for advanced rendering)`}
+/>
+
+## Setting Up ROS TCP Connector
+
+### Installation and Configuration
+
+The ROS TCP Connector enables communication between Unity and ROS 2 systems:
+
+<CodeExample
+  language="csharp"
+  title="ROS TCP Connector Setup in Unity C#"
+  description="Basic setup for connecting Unity to ROS 2 using the TCP connector"
+  code={`using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using Unity.Robotics.ROSTCPConnector;
+using RosMessageTypes.Sensor;
+using RosMessageTypes.Geometry;
+
+public class RobotController : MonoBehaviour
+{
+    ROSConnection ros;
+    string rosIP = "127.0.0.1"; // Default to local host
+    int rosPort = 10000; // Default port for ROS TCP Connector
+
+    // Robot parameters
+    float linearVelocity = 0.0f;
+    float angularVelocity = 0.0f;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        // Get the ROS connection static instance
+        ros = ROSConnection.instance;
+
+        // Set the IP and port for the ROS connection
+        ros.Initialize(rosIP, rosPort);
+
+        // Start listening for ROS messages
+        ros.Subscribe<TwistMsg>(\"/cmd_vel\", CmdVelCallback);
+    }
+
+    // Callback function for receiving Twist messages
+    void CmdVelCallback(TwistMsg cmd_vel)
+    {
+        linearVelocity = cmd_vel.linear.x;
+        angularVelocity = cmd_vel.angular.z;
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        // Apply movement based on received velocities
+        transform.Translate(Vector3.forward * linearVelocity * Time.deltaTime);
+        transform.Rotate(Vector3.up, angularVelocity * Time.deltaTime);
+    }
+
+    // Send a message to ROS
+    void SendToROS()
+    {
+        // Create a message
+        TwistMsg twist = new TwistMsg();
+        twist.linear = new Vector3Msg(0.5f, 0, 0); // Move forward at 0.5 m/s
+        twist.angular = new Vector3Msg(0, 0, 0.2f); // Rotate at 0.2 rad/s
+
+        // Send the message
+        ros.Send(\"/cmd_vel\", twist);
+    }
+}`}
+/>
+
+### ROS TCP Connector Configuration
+
+<SimulationExample
+  title="ROS TCP Connector Bridge Setup"
+  description="Python script to run the ROS TCP Connector bridge between ROS 2 and Unity"
+  code={`#!/usr/bin/env python3
+"""
+ROS TCP Connector Bridge
+This script establishes a bridge between ROS 2 and Unity using TCP.
+"""
+
+import socket
+import json
+import threading
+import rospy
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan, Image, Imu
+import base64
+import numpy as np
+from io import BytesIO
+
+class ROSTCPBridge:
+    def __init__(self, unity_ip='127.0.0.1', unity_port=10000):
+        self.unity_ip = unity_ip
+        self.unity_port = unity_port
+        self.socket = None
+        self.running = False
+
+        # ROS publishers and subscribers
+        self.cmd_vel_sub = rospy.Subscriber('/cmd_vel', Twist, self.cmd_vel_callback)
+        self.scan_pub = rospy.Publisher('/scan', LaserScan, queue_size=10)
+        self.image_pub = rospy.Publisher('/unity_camera/image_raw', Image, queue_size=10)
+
+        # Unity publishers
+        self.unity_cmd_vel_pub = rospy.Publisher('/unity/cmd_vel', Twist, queue_size=10)
+
+    def connect_to_unity(self):
+        """Establish connection to Unity"""
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(5.0)
+
+        try:
+            self.socket.connect((self.unity_ip, self.unity_port))
+            self.running = True
+            print(f"Connected to Unity at {self.unity_ip}:{self.unity_port}")
+            return True
+        except Exception as e:
+            print(f"Failed to connect to Unity: {e}")
+            return False
+
+    def cmd_vel_callback(self, msg):
+        """Handle incoming ROS cmd_vel messages"""
+        if self.socket:
+            # Send to Unity
+            unity_cmd = {
+                'type': 'cmd_vel',
+                'linear_x': msg.linear.x,
+                'linear_y': msg.linear.y,
+                'linear_z': msg.linear.z,
+                'angular_x': msg.angular.x,
+                'angular_y': msg.angular.y,
+                'angular_z': msg.angular.z
+            }
+
+            try:
+                self.socket.send(json.dumps(unity_cmd).encode() + b'\\n')
+            except Exception as e:
+                print(f"Error sending to Unity: {e}")
+
+    def listen_to_unity(self):
+        """Listen for messages from Unity"""
+        while self.running:
+            try:
+                data = self.socket.recv(4096).decode()
+                if data:
+                    # Process Unity messages
+                    for line in data.split('\\n'):
+                        if line.strip():
+                            msg = json.loads(line)
+                            self.process_unity_message(msg)
+            except Exception as e:
+                print(f"Error receiving from Unity: {e}")
+                break
+
+    def process_unity_message(self, msg):
+        """Process messages received from Unity"""
+        msg_type = msg.get('type', '')
+
+        if msg_type == 'sensor_data':
+            # Publish sensor data to ROS
+            scan_msg = LaserScan()
+            scan_msg.header.stamp = rospy.Time.now()
+            scan_msg.header.frame_id = 'laser_frame'
+            scan_msg.ranges = msg.get('ranges', [])
+            scan_msg.angle_min = msg.get('angle_min', -1.57)
+            scan_msg.angle_max = msg.get('angle_max', 1.57)
+            scan_msg.angle_increment = msg.get('angle_increment', 0.01)
+            scan_msg.range_min = msg.get('range_min', 0.1)
+            scan_msg.range_max = msg.get('range_max', 30.0)
+
+            self.scan_pub.publish(scan_msg)
+
+    def run(self):
+        """Main run loop"""
+        if not self.connect_to_unity():
+            return
+
+        # Start listening thread
+        listen_thread = threading.Thread(target=self.listen_to_unity)
+        listen_thread.daemon = True
+        listen_thread.start()
+
+        rate = rospy.Rate(30)  # 30 Hz
+        while not rospy.is_shutdown() and self.running:
+            # Publish any necessary data to ROS
+            rate.sleep()
+
+        self.running = False
+
+def main():
+    rospy.init_node('ros_tcp_bridge')
+
+    bridge = ROSTCPBridge()
+    bridge.run()
+
+if __name__ == '__main__':
+    main()`}
+  language="python"
+  simulationType="ros"
+>
+
+This ROS TCP Connector bridge handles:
+- Bidirectional communication between ROS 2 and Unity
+- Message translation between ROS and Unity formats
+- Sensor data publishing from Unity to ROS
+- Command forwarding from ROS to Unity
+
+</SimulationExample>
+
+## Bridging Gazebo Physics with Unity Visuals
+
+### Architecture Overview
+
+<ArchitectureDiagram
+  variant="components"
+  title="Gazebo-Unity Integration Architecture"
+  description="Shows how Gazebo physics connects with Unity visuals through ROS communication"
+  highlightElements={["gazebo", "ros_bridge", "unity"]}
+/>
+
+### Multi-Simulator Workflow
+
+<ConceptExplainer
+  concept="Multi-Simulator Workflow"
+  description="Combining different simulators to leverage their respective strengths: Gazebo for physics accuracy, Unity for high-fidelity graphics."
+  examples={[
+    "Gazebo handles physics simulation while Unity handles visualization",
+    "Sensor data from Gazebo, rendered in Unity for HRI",
+    "Unity for VR/AR interfaces, Gazebo for physics backend"
+  ]}
+  relatedConcepts={["Gazebo", "Unity", "Multi-Simulator", "Physics", "Visualization"]}
+>
+
+### Key Benefits of Multi-Simulator Approach
+
+1. **Physics Accuracy**: Gazebo's proven physics engine for realistic simulation
+2. **Visual Quality**: Unity's advanced rendering for photorealistic visualization
+3. **Flexibility**: Choose the best tool for each aspect of simulation
+4. **Human-Robot Interaction**: Unity's superior interface capabilities
+
+</ConceptExplainer>
+
+### Implementation Example: Physics-Visual Bridge
+
+<CodeExample
+  language="python"
+  title="Gazebo-Unity Bridge Implementation"
+  description="Python node that synchronizes robot state between Gazebo and Unity"
+  code={`#!/usr/bin/env python3
+"""
+Gazebo-Unity Bridge Node
+Synchronizes robot state between Gazebo physics and Unity visualization
+"""
+
+import rospy
+import tf2_ros
+import tf2_geometry_msgs
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import TransformStamped, Pose
+from sensor_msgs.msg import JointState
+from std_msgs.msg import Header
+import numpy as np
+
+class GazeboUnityBridge:
+    def __init__(self):
+        rospy.init_node('gazebo_unity_bridge')
+
+        # Publishers for Unity
+        self.unity_odom_pub = rospy.Publisher('/unity/odometry', Odometry, queue_size=10)
+        self.unity_joint_pub = rospy.Publisher('/unity/joint_states', JointState, queue_size=10)
+
+        # Subscribers for Gazebo
+        self.gazebo_odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
+        self.gazebo_joint_sub = rospy.Subscriber('/joint_states', JointState, self.joint_callback)
+
+        # TF broadcaster for Unity transforms
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
+
+        # Store robot state
+        self.current_odom = None
+        self.current_joints = None
+
+        # Rate for publishing to Unity
+        self.rate = rospy.Rate(60)  # 60 Hz for smooth Unity visualization
+
+        rospy.loginfo("Gazebo-Unity Bridge initialized")
+
+    def odom_callback(self, msg):
+        """Receive odometry from Gazebo"""
+        self.current_odom = msg
+
+        # Publish to Unity with adjusted frame
+        unity_odom = Odometry()
+        unity_odom.header = Header()
+        unity_odom.header.stamp = rospy.Time.now()
+        unity_odom.header.frame_id = "unity_odom"
+        unity_odom.child_frame_id = "unity_base_link"
+
+        # Copy pose (Unity might use different coordinate system)
+        unity_odom.pose = msg.pose
+        unity_odom.twist = msg.twist
+
+        self.unity_odom_pub.publish(unity_odom)
+
+        # Broadcast TF for Unity
+        t = TransformStamped()
+        t.header.stamp = rospy.Time.now()
+        t.header.frame_id = "unity_world"
+        t.child_frame_id = "unity_robot_base"
+        t.transform.translation.x = msg.pose.pose.position.x
+        t.transform.translation.y = msg.pose.pose.position.y
+        t.transform.translation.z = msg.pose.pose.position.z
+        t.transform.rotation = msg.pose.pose.orientation
+
+        self.tf_broadcaster.sendTransform(t)
+
+    def joint_callback(self, msg):
+        """Receive joint states from Gazebo"""
+        self.current_joints = msg
+
+        # Publish to Unity
+        if self.current_joints:
+            unity_joints = JointState()
+            unity_joints.header = Header()
+            unity_joints.header.stamp = rospy.Time.now()
+            unity_joints.header.frame_id = "unity_joint_states"
+
+            # Copy joint information
+            unity_joints.name = self.current_joints.name
+            unity_joints.position = self.current_joints.position
+            unity_joints.velocity = self.current_joints.velocity
+            unity_joints.effort = self.current_joints.effort
+
+            self.unity_joint_pub.publish(unity_joints)
+
+    def run(self):
+        """Main run loop"""
+        rospy.loginfo("Gazebo-Unity Bridge running...")
+
+        while not rospy.is_shutdown():
+            # Additional synchronization logic could go here
+            self.rate.sleep()
+
+def main():
+    bridge = GazeboUnityBridge()
+    bridge.run()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Designing Interactive Environments for HRI
+
+### Unity Scene Setup for Robotics
+
+<SimulationExample
+  title="Unity Robotics Scene Setup"
+  description="Setting up a Unity scene for robot simulation and human-robot interaction"
+  code={`using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using Unity.Robotics.ROSTCPConnector;
+using Unity.Robotics.ROSTCPConnector.MessageTypes.Geometry;
+using RosMessageTypes.Sensor;
+
+public class UnityRobotScene : MonoBehaviour
+{
+    public GameObject robotPrefab;
+    public Transform robotSpawnPoint;
+    public Camera mainCamera;
+    public Light mainLight;
+
+    private GameObject robotInstance;
+    private ROSConnection ros;
+
+    // Robot components
+    private ArticulationBody[] joints;
+    private Renderer[] robotRenderers;
+
+    void Start()
+    {
+        // Initialize ROS connection
+        ros = ROSConnection.instance;
+        ros.Initialize("127.0.0.1", 10000);
+
+        // Spawn robot
+        SpawnRobot();
+
+        // Subscribe to sensor topics
+        ros.Subscribe<LaserScanMsg>("/scan", OnLaserScanReceived);
+        ros.Subscribe<ImuMsg>("/imu/data", OnImuReceived);
+
+        // Setup scene lighting and environment
+        SetupEnvironment();
+    }
+
+    void SpawnRobot()
+    {
+        robotInstance = Instantiate(robotPrefab, robotSpawnPoint.position, robotSpawnPoint.rotation);
+
+        // Get robot components
+        joints = robotInstance.GetComponentsInChildren<ArticulationBody>();
+        robotRenderers = robotInstance.GetComponentsInChildren<Renderer>();
+
+        // Apply initial material properties for Unity rendering
+        foreach (Renderer renderer in robotRenderers)
+        {
+            renderer.material.SetColor("_Color", Color.gray);
+            renderer.material.SetFloat("_Metallic", 0.2f);
+            renderer.material.SetFloat("_Smoothness", 0.5f);
+        }
+    }
+
+    void SetupEnvironment()
+    {
+        // Create ground plane
+        GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        ground.transform.position = Vector3.zero;
+        ground.transform.localScale = new Vector3(10, 1, 10);
+
+        // Apply material for realistic appearance
+        Renderer groundRenderer = ground.GetComponent<Renderer>();
+        groundRenderer.material.color = Color.green;
+        groundRenderer.material.SetColor("_Color", new Color(0.2f, 0.6f, 0.2f));
+
+        // Add furniture and obstacles
+        CreateEnvironmentObjects();
+    }
+
+    void CreateEnvironmentObjects()
+    {
+        // Create a table
+        GameObject table = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        table.transform.position = new Vector3(3, 0.5f, 0);
+        table.transform.localScale = new Vector3(2, 1, 1);
+        table.GetComponent<Renderer>().material.color = Color.brown;
+
+        // Create obstacles
+        for (int i = 0; i < 5; i++)
+        {
+            GameObject obstacle = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            obstacle.transform.position = new Vector3(
+                Random.Range(-4f, 4f),
+                0.25f,
+                Random.Range(-4f, 4f)
+            );
+            obstacle.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+            obstacle.GetComponent<Renderer>().material.color = Color.red;
+        }
+    }
+
+    void OnLaserScanReceived(LaserScanMsg scan)
+    {
+        // Process laser scan data for visualization
+        // Could visualize the scan points in the scene
+        VisualizeLaserScan(scan);
+    }
+
+    void OnImuReceived(ImuMsg imu)
+    {
+        // Process IMU data for robot stabilization in Unity
+        // Could affect robot visuals based on orientation
+    }
+
+    void VisualizeLaserScan(LaserScanMsg scan)
+    {
+        // Create visualization of laser scan points
+        for (int i = 0; i < Mathf.Min(scan.ranges.Length, 100); i++)
+        {
+            if (scan.ranges[i] < scan.range_max && scan.ranges[i] > scan.range_min)
+            {
+                Vector3 direction = Quaternion.Euler(0, scan.angle_min + i * scan.angle_increment * Mathf.Rad2Deg, 0) * Vector3.forward;
+                Vector3 position = robotInstance.transform.position + direction * scan.ranges[i];
+
+                // Visualize the scan point
+                GameObject point = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                point.transform.position = position;
+                point.transform.localScale = Vector3.one * 0.05f;
+                point.GetComponent<Renderer>().material.color = Color.blue;
+
+                // Destroy after a short time
+                Destroy(point, 0.1f);
+            }
+        }
+    }
+
+    void Update()
+    {
+        // Handle user input for HRI
+        HandleUserInput();
+    }
+
+    void HandleUserInput()
+    {
+        // Allow user to control camera or interact with environment
+        if (Input.GetMouseButtonDown(0))
+        {
+            // Raycast to interact with objects
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit))
+            {
+                Debug.Log("Clicked on: " + hit.collider.name);
+
+                // Send interaction to ROS
+                ros.Send("/unity_interaction", new TwistMsg());
+            }
+        }
+    }
+}`}
+  language="csharp"
+  simulationType="unity"
+>
+
+This Unity scene setup includes:
+- Robot instantiation with proper physics properties
+- Environment creation with ground and obstacles
+- Sensor data visualization (laser scan points)
+- User interaction handling for HRI
+
+</SimulationExample>
+
+## VR/AR Integration for Human-Robot Interaction
+
+### Unity XR Setup for Robot Teleoperation
+
+<CodeExample
+  language="csharp"
+  title="Unity XR Setup for Robot Teleoperation"
+  description="Setting up VR/AR interface for immersive robot teleoperation"
+  code={`using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.XR;
+using UnityEngine.XR.Interaction.Toolkit;
+using Unity.Robotics.ROSTCPConnector;
+using RosMessageTypes.Sensor;
+using RosMessageTypes.Geometry;
+
+public class RobotTeleoperationVR : MonoBehaviour
+{
+    public Transform robotBase;
+    public Transform vrCameraRig;
+    public Transform leftController;
+    public Transform rightController;
+
+    private ROSConnection ros;
+    private InputDevice leftControllerDevice;
+    private InputDevice rightControllerDevice;
+
+    // VR interaction components
+    private XRGrabInteractable grabInteractable;
+
+    void Start()
+    {
+        ros = ROSConnection.instance;
+        ros.Initialize("127.0.0.1", 10000);
+
+        // Initialize XR devices
+        List<InputDevice> devices = new List<InputDevice>();
+        InputDevices.GetDevicesAtXRNode(XRNode.LeftHand, devices);
+        if (devices.Count > 0) leftControllerDevice = devices[0];
+
+        devices.Clear();
+        InputDevices.GetDevicesAtXRNode(XRNode.RightHand, devices);
+        if (devices.Count > 0) rightControllerDevice = devices[0];
+
+        // Subscribe to sensor data for haptic feedback
+        ros.Subscribe<ImuMsg>("/imu/data", OnImuReceived);
+        ros.Subscribe<LaserScanMsg>("/scan", OnLaserScanReceived);
+    }
+
+    void Update()
+    {
+        HandleVRInput();
+        UpdateRobotVisualization();
+    }
+
+    void HandleVRInput()
+    {
+        // Get controller inputs
+        if (leftControllerDevice.isValid)
+        {
+            // Get trigger value for speed control
+            float triggerValue;
+            if (leftControllerDevice.TryGetFeatureValue(CommonUsages.trigger, out triggerValue))
+            {
+                // Send speed command based on trigger
+                if (triggerValue > 0.1f)
+                {
+                    ros.Send("/cmd_vel", new TwistMsg(
+                        new Vector3Msg(triggerValue, 0, 0),
+                        new Vector3Msg(0, 0, 0)
+                    ));
+                }
+            }
+
+            // Get thumbstick for rotation
+            Vector2 thumbstickValue;
+            if (leftControllerDevice.TryGetFeatureValue(CommonUsages.primary2DAxis, out thumbstickValue))
+            {
+                if (thumbstickValue.magnitude > 0.1f)
+                {
+                    ros.Send("/cmd_vel", new TwistMsg(
+                        new Vector3Msg(0, 0, 0),
+                        new Vector3Msg(0, 0, thumbstickValue.x)
+                    ));
+                }
+            }
+        }
+    }
+
+    void OnImuReceived(ImuMsg imu)
+    {
+        // Apply haptic feedback based on IMU data
+        if (rightControllerDevice.isValid)
+        {
+            // Create haptic impulse based on angular velocity
+            float intensity = Mathf.Clamp01(
+                (Mathf.Abs(imu.angular_velocity.x) +
+                 Mathf.Abs(imu.angular_velocity.y) +
+                 Mathf.Abs(imu.angular_velocity.z)) / 5.0f
+            );
+
+            rightControllerDevice.SendHapticImpulse(0, intensity, 0.1f);
+        }
+    }
+
+    void OnLaserScanReceived(LaserScanMsg scan)
+    {
+        // Visualize obstacles in VR space
+        VisualizeObstaclesInVR(scan);
+    }
+
+    void VisualizeObstaclesInVR(LaserScanMsg scan)
+    {
+        // Create visual indicators for nearby obstacles
+        for (int i = 0; i < scan.ranges.Length; i += 10) // Sample every 10th point
+        {
+            if (scan.ranges[i] < 2.0f && scan.ranges[i] > scan.range_min)
+            {
+                Vector3 direction = Quaternion.Euler(0, scan.angle_min + i * scan.angle_increment * Mathf.Rad2Deg, 0) * Vector3.forward;
+                Vector3 worldPosition = robotBase.position + direction * scan.ranges[i];
+
+                // Only show in VR if close enough to be concerning
+                if (scan.ranges[i] < 1.0f)
+                {
+                    // Could create a warning indicator in VR space
+                    Debug.Log($"Obstacle detected at {scan.ranges[i]:F2}m");
+                }
+            }
+        }
+    }
+
+    void UpdateRobotVisualization()
+    {
+        // Update robot position based on odometry from ROS
+        // This would be handled by a separate odometry subscriber
+    }
+}`}
+/>
+
+## Best Practices for Multi-Simulator Workflows
+
+### Performance Optimization
+
+<ConceptExplainer
+  concept="Multi-Simulator Performance Optimization"
+  description="Techniques to maintain performance when running multiple simulators simultaneously."
+  examples={[
+    "Throttling message rates between simulators",
+    "Using separate threads for different simulator communications",
+    "Optimizing rendering quality vs. performance trade-offs"
+  ]}
+  relatedConcepts={["Performance", "Optimization", "Threading", "Synchronization"]}
+>
+
+### Key Performance Considerations
+
+1. **Message Rate Management**: Don't overwhelm either simulator with too many messages
+2. **Synchronization Strategy**: Decide whether to sync at physics rate or visualization rate
+3. **Resource Allocation**: Balance CPU/GPU usage between simulators
+4. **Data Filtering**: Only transmit necessary data between simulators
+
+</ConceptExplainer>
+
+### Synchronization Strategies
+
+<CodeExample
+  language="python"
+  title="Synchronization Between Gazebo and Unity"
+  description="Implementing proper synchronization to maintain consistency between simulators"
+  code={`#!/usr/bin/env python3
+"""
+Synchronization Manager for Multi-Simulator Setup
+Manages timing and data consistency between Gazebo and Unity
+"""
+
+import rospy
+import threading
+import time
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import JointState
+from std_msgs.msg import Header
+from geometry_msgs.msg import Twist
+
+class MultiSimSynchronizer:
+    def __init__(self):
+        rospy.init_node('multi_sim_synchronizer')
+
+        # Internal state storage
+        self.gazebo_state = {
+            'timestamp': rospy.Time(0),
+            'position': None,
+            'velocity': None,
+            'joints': None
+        }
+
+        self.unity_state = {
+            'timestamp': rospy.Time(0),
+            'position': None,
+            'velocity': None
+        }
+
+        # Subscribers for both simulators
+        self.gazebo_odom_sub = rospy.Subscriber('/gazebo/odometry', Odometry, self.gazebo_odom_callback)
+        self.gazebo_joint_sub = rospy.Subscriber('/gazebo/joint_states', JointState, self.gazebo_joint_callback)
+        self.unity_odom_sub = rospy.Subscriber('/unity/odometry', Odometry, self.unity_odom_callback)
+
+        # Publishers for synchronization
+        self.sync_cmd_pub = rospy.Publisher('/sync/cmd_vel', Twist, queue_size=10)
+
+        # Synchronization parameters
+        self.sync_rate = rospy.Rate(60)  # 60 Hz sync
+        self.max_time_diff = rospy.Duration(0.1)  # 100ms max time difference
+        self.lock = threading.Lock()
+
+        rospy.loginfo("Multi-Simulator Synchronizer initialized")
+
+    def gazebo_odom_callback(self, msg):
+        """Update Gazebo state from odometry"""
+        with self.lock:
+            self.gazebo_state['timestamp'] = msg.header.stamp
+            self.gazebo_state['position'] = msg.pose.pose
+            self.gazebo_state['velocity'] = msg.twist.twist
+
+    def gazebo_joint_callback(self, msg):
+        """Update Gazebo joint states"""
+        with self.lock:
+            self.gazebo_state['joints'] = msg
+
+    def unity_odom_callback(self, msg):
+        """Update Unity state from odometry"""
+        with self.lock:
+            self.unity_state['timestamp'] = msg.header.stamp
+            self.unity_state['position'] = msg.pose.pose
+            self.unity_state['velocity'] = msg.twist.twist
+
+    def check_synchronization(self):
+        """Check if simulators are properly synchronized"""
+        with self.lock:
+            time_diff = abs(self.gazebo_state['timestamp'] - self.unity_state['timestamp'])
+
+            if time_diff > self.max_time_diff:
+                rospy.logwarn(f"Time desynchronization detected: {time_diff.to_sec():.3f}s")
+                # Could implement correction logic here
+                return False
+            return True
+
+    def synchronize_states(self):
+        """Implement state synchronization logic"""
+        # This is where you'd implement your specific sync strategy
+        # For example: average positions, prioritize one simulator, etc.
+        pass
+
+    def run(self):
+        """Main synchronization loop"""
+        rospy.loginfo("Multi-Simulator Synchronizer running...")
+
+        while not rospy.is_shutdown():
+            # Check synchronization status
+            is_synced = self.check_synchronization()
+
+            if not is_synced:
+                rospy.logwarn("Attempting to resynchronize simulators...")
+                # Implement resynchronization logic
+                self.synchronize_states()
+
+            self.sync_rate.sleep()
+
+def main():
+    synchronizer = MultiSimSynchronizer()
+    synchronizer.run()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Troubleshooting and Optimization
+
+### Common Issues and Solutions
+
+<ConceptExplainer
+  concept="Multi-Simulator Troubleshooting"
+  description="Common issues that arise when integrating multiple simulators and their solutions."
+  examples={[
+    "Synchronization problems between simulators",
+    "Performance degradation with multiple simulators",
+    "Network communication failures",
+    "Coordinate system mismatches"
+  ]}
+  relatedConcepts={["Troubleshooting", "Debugging", "Performance", "Synchronization"]}
+>
+
+### Common Troubleshooting Approaches
+
+1. **Network Issues**: Check IP addresses, ports, and firewall settings
+2. **Timing Problems**: Adjust message rates and buffer sizes
+3. **Coordinate Systems**: Ensure consistent frame definitions
+4. **Resource Constraints**: Monitor CPU/GPU usage and adjust accordingly
+
+</ConceptExplainer>
+
+### Performance Monitoring
+
+<CodeExample
+  language="bash"
+  title="Performance Monitoring Script"
+  description="Script to monitor performance of multi-simulator setup"
+  code={`#!/bin/bash
+# Performance monitoring script for multi-simulator setup
+
+echo "Multi-Simulator Performance Monitor"
+echo "==================================="
+
+# Monitor CPU and memory usage
+echo "System Resources:"
+top -bn1 | head -20
+
+echo ""
+echo "ROS Nodes:"
+ros2 node list
+
+echo ""
+echo "ROS Topics and Rates:"
+ros2 topic list | while read topic; do
+    if [[ $topic == *"scan"* ]] || [[ $topic == *"imu"* ]] || [[ $topic == *"odom"* ]]; then
+        echo -n "$topic: "
+        timeout 1 ros2 topic echo $topic --field data --field ranges --field pose --field twist | wc -l
+    fi
+done
+
+echo ""
+echo "Network Connections:"
+netstat -tuln | grep :10000  # ROS TCP Connector default port
+
+echo ""
+echo "Unity Process Check:"
+ps aux | grep Unity
+
+echo ""
+echo "Gazebo Process Check:"
+ps aux | grep gz
+
+echo ""
+echo "GPU Usage (if available):"
+nvidia-smi || echo "nvidia-smi not available"
+
+echo ""
+echo "To continuously monitor, run: watch -n 2 './monitor_performance.sh'"`}
+/>
+
+## Summary
+
+This chapter covered the integration of Unity with ROS 2 for high-fidelity visualization and human-robot interaction:
+
+- Unity Robotics Hub setup and ROS TCP Connector configuration
+- Bridging Gazebo physics with Unity visuals for optimal simulation
+- Creating interactive environments for human-robot interaction
+- Implementing VR/AR interfaces for immersive robot teleoperation
+- Best practices for multi-simulator workflows and synchronization
+- Performance optimization and troubleshooting techniques
+
+The multi-simulator approach allows leveraging the strengths of both Gazebo (physics accuracy) and Unity (visualization quality) to create comprehensive digital twins for humanoid robotics applications.
+
+</ChapterLayout>

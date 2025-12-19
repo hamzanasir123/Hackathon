@@ -1,0 +1,1190 @@
+---
+title: Mastering Gazebo Simulation
+sidebar_label: Mastering Gazebo Simulation
+sidebar_position: 3
+description: Hands-on setup of Gazebo environments, working with SDF and URDF, physics properties, and sensor simulation
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+import SimulationExample from '@site/src/components/SimulationExample';
+
+<ChapterLayout
+  title="Mastering Gazebo Simulation"
+  description="Hands-on setup of Gazebo environments, working with SDF and URDF, physics properties, and sensor simulation"
+  previous={{path: '/docs/module-2-digital-twin/introduction-to-digital-twins', title: 'Introduction to Digital Twins'}}
+  next={{path: '/docs/module-2-digital-twin/unity-integration', title: 'Unity Integration'}}
+>
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Set up complete Gazebo environments with custom worlds
+- Work with SDF and advanced URDF for simulation
+- Configure physics properties, collisions, and plugins
+- Simulate core sensors: LiDAR, depth cameras, RGB cameras, and IMUs
+- Create complex worlds with obstacles, furniture, and dynamic elements
+- Troubleshoot common simulation issues
+
+## Setting Up Gazebo Environments
+
+### Creating Custom Worlds
+
+Gazebo worlds are defined using SDF (Simulation Description Format) files. Let's create a more complex world than the basic empty world:
+
+<SimulationExample
+  title="Complex Indoor World"
+  description="A furnished room with obstacles for robot navigation"
+  code={`<?xml version="1.0"?>
+<sdf version="1.7">
+  <world name="furnished_room">
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+      <gravity>0 0 -9.8</gravity>
+    </physics>
+
+    <!-- Lighting -->
+    <light name="ceiling_light" type="point">
+      <pose>0 0 3 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>10</range>
+        <constant>0.5</constant>
+        <linear>0.1</linear>
+        <quadratic>0.01</quadratic>
+      </attenuation>
+    </light>
+
+    <!-- Ground plane -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.7 0.7 0.7 1</ambient>
+            <diffuse>0.7 0.7 0.7 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Walls -->
+    <model name="wall_1">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>10 0.2 3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>10 0.2 3</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <pose>0 -5 1.5 0 0 0</pose>
+    </model>
+
+    <model name="wall_2">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>10 0.2 3</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>10 0.2 3</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <pose>0 5 1.5 0 0 3.14159</pose>
+    </model>
+
+    <!-- Furniture -->
+    <model name="table">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.5 0.8 0.8</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.5 0.8 0.8</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <pose>2 0 0.4 0 0 0</pose>
+    </model>
+
+    <model name="chair">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.8</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.8</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.5 0.7 1</ambient>
+            <diffuse>0.5 0.5 0.7 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <pose>1.5 0.8 0.4 0 0 0</pose>
+    </model>
+
+    <!-- Obstacle -->
+    <model name="obstacle">
+      <static>false</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.3</radius>
+              <length>0.5</length>
+            </cylinder>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.3</radius>
+              <length>0.5</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.9 0.5 0.5 1</ambient>
+            <diffuse>0.9 0.5 0.5 1</diffuse>
+          </material>
+        </visual>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia>
+            <ixx>0.01</ixx>
+            <iyy>0.01</iyy>
+            <izz>0.02</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <pose>-2 0 0.25 0 0 0</pose>
+    </model>
+  </world>
+</sdf>`}
+  language="xml"
+  simulationType="gazebo"
+>
+
+This complex world includes:
+- Static walls to define the room boundaries
+- Furniture (table and chair) as static obstacles
+- A dynamic cylinder that can be moved by the robot
+
+</SimulationExample>
+
+## Working with SDF and Advanced URDF
+
+### SDF vs URDF: When to Use Each
+
+<ConceptExplainer
+  concept="SDF vs URDF"
+  analogy="URDF is like a blueprint for a single robot, while SDF is like architectural plans for an entire building including the environment."
+  description="URDF (Unified Robot Description Format) describes robot models, while SDF (Simulation Description Format) describes the entire simulation environment including worlds, models, and physics."
+  examples={[
+    "URDF: Describing robot kinematics, links, joints, and visual/collision properties",
+    "SDF: Describing simulation worlds, physics engines, lights, and complete environments"
+  ]}
+  relatedConcepts={["URDF", "SDF", "Robot Description", "Simulation Environment"]}
+>
+
+### Key Differences
+
+- **URDF**: Robot-specific, describes kinematics and basic geometry
+- **SDF**: Environment and robot capable, describes entire simulation scenarios
+- **Integration**: URDF can be embedded in SDF for complete simulation descriptions
+
+</ConceptExplainer>
+
+### Advanced URDF for Simulation
+
+Here's an example of an advanced URDF file with simulation-specific properties:
+
+<CodeExample
+  language="xml"
+  title="Advanced URDF with Simulation Properties"
+  description="A humanoid robot URDF with detailed physics and sensor properties for simulation"
+  code={`<?xml version="1.0"?>
+<robot name="simple_humanoid" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Materials -->
+  <material name="blue">
+    <color rgba="0.0 0.0 0.8 1.0"/>
+  </material>
+  <material name="black">
+    <color rgba="0.0 0.0 0.0 1.0"/>
+  </material>
+  <material name="white">
+    <color rgba="1.0 1.0 1.0 1.0"/>
+  </material>
+
+  <!-- Base Link -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <cylinder length="0.6" radius="0.2"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.6" radius="0.2"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="10"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+    </inertial>
+  </link>
+
+  <!-- Head -->
+  <joint name="head_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="head"/>
+    <origin xyz="0 0 0.5" rpy="0 0 0"/>
+  </joint>
+
+  <link name="head">
+    <visual>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="2"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+
+  <!-- Camera sensor -->
+  <joint name="camera_joint" type="fixed">
+    <parent link="head"/>
+    <child link="camera_link"/>
+    <origin xyz="0.05 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="camera_link">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 0.05"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 0.05"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <!-- Camera sensor plugin -->
+  <gazebo reference="camera_link">
+    <sensor type="camera" name="camera1">
+      <update_rate>30.0</update_rate>
+      <camera name="head_camera">
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>800</width>
+          <height>600</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>100</far>
+        </clip>
+      </camera>
+      <plugin filename="gz-sim-camera-system" name="gz::sim::systems::Camera">
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- IMU sensor -->
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="imu_link">
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>true</visualize>
+    </sensor>
+  </gazebo>
+
+</robot>`}
+/>
+
+## Physics Properties and Collision Configuration
+
+### Understanding Physics Parameters
+
+<ConceptExplainer
+  concept="Gazebo Physics Parameters"
+  description="Physics parameters control how objects behave in simulation, including gravity, friction, and collision properties."
+  examples={[
+    "Setting appropriate friction coefficients for different surfaces",
+    "Configuring restitution (bounciness) for objects",
+    "Adjusting solver parameters for stability"
+  ]}
+  relatedConcepts={["ODE", "Physics", "Friction", "Restitution", "Solver"]}
+>
+
+### Key Physics Parameters
+
+- **Gravity**: Acceleration due to gravity (typically 9.8 m/s²)
+- **Friction**: Resistance to sliding motion between surfaces
+- **Restitution**: How much energy is preserved in collisions (bounciness)
+- **Solver Type**: How physics equations are solved (ODE, Bullet, Simbody)
+- **Max Step Size**: Time increment for physics calculations
+- **Real Time Factor**: Simulation speed relative to real time
+
+</ConceptExplainer>
+
+### Configuring Collision Properties
+
+<CodeExample
+  language="xml"
+  title="Physics Configuration with Collision Properties"
+  description="Example of configuring physics and collision properties in SDF"
+  code={`<?xml version="1.0"?>
+<sdf version="1.7">
+  <world name="physics_demo">
+    <physics type="ode">
+      <!-- Physics engine parameters -->
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+      <gravity>0 0 -9.8</gravity>
+
+      <!-- ODE-specific parameters -->
+      <ode>
+        <solver>
+          <type>quick</type>
+          <iters>10</iters>
+          <sor>1.3</sor>
+        </solver>
+        <constraints>
+          <cfm>0.0</cfm>
+          <erp>0.2</erp>
+          <contact_max_correcting_vel>100.0</contact_max_correcting_vel>
+          <contact_surface_layer>0.001</contact_surface_layer>
+        </constraints>
+      </ode>
+    </physics>
+
+    <!-- Ground plane with specific friction -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+            </plane>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+            </plane>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Object with custom physics properties -->
+    <model name="custom_object">
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.1</radius>
+            </sphere>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0.5</mu>
+                <mu2>0.5</mu2>
+              </ode>
+            </friction>
+            <bounce>
+              <restitution_coefficient>0.8</restitution_coefficient>
+              <threshold>100000</threshold>
+            </bounce>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.1</radius>
+            </sphere>
+          </geometry>
+        </visual>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia>
+            <ixx>0.001</ixx>
+            <iyy>0.001</iyy>
+            <izz>0.001</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <pose>0 0 2 0 0 0</pose>
+    </model>
+  </world>
+</sdf>`}
+/>
+
+## Simulating Core Sensors
+
+### LiDAR Simulation
+
+<SimulationExample
+  title="LiDAR Sensor Configuration"
+  description="Configuring a 2D LiDAR sensor in Gazebo for navigation and mapping"
+  code={`<?xml version="1.0"?>
+<sdf version="1.7">
+  <model name="robot_with_lidar">
+    <link name="base_link">
+      <visual>
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.3</size>
+          </box>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.3</size>
+          </box>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass>10.0</mass>
+        <inertia>
+          <ixx>0.4</ixx>
+          <iyy>0.4</iyy>
+          <izz>0.2</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <!-- LiDAR sensor -->
+    <link name="laser_link">
+      <visual>
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.04</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.04</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass>0.1</mass>
+        <inertia>
+          <ixx>0.0001</ixx>
+          <iyy>0.0001</iyy>
+          <izz>0.0001</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <joint name="laser_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>laser_link</child>
+      <origin xyz="0.2 0 0.2" rpy="0 0 0"/>
+    </joint>
+
+    <!-- LiDAR sensor configuration -->
+    <gazebo reference="laser_link">
+      <sensor type="ray" name="laser">
+        <pose>0 0 0 0 0 0</pose>
+        <visualize>true</visualize>
+        <update_rate>10</update_rate>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>720</samples>
+              <resolution>1</resolution>
+              <min_angle>-1.570796</min_angle>
+              <max_angle>1.570796</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>0.1</min>
+            <max>30.0</max>
+            <resolution>0.01</resolution>
+          </range>
+        </ray>
+        <plugin filename="gz-sim-lidar-system" name="gz::sim::systems::Lidar">
+        </plugin>
+      </sensor>
+    </gazebo>
+  </model>
+</sdf>`}
+  language="xml"
+  simulationType="gazebo"
+>
+
+This LiDAR configuration creates a 2D laser scanner with:
+- 720 samples across 180 degrees
+- Range from 0.1m to 30m
+- 10Hz update rate
+- Visualization enabled
+
+</SimulationExample>
+
+### Depth Camera Simulation
+
+<CodeExample
+  language="xml"
+  title="Depth Camera Sensor Configuration"
+  description="Configuring a depth camera for 3D perception in simulation"
+  code={`<?xml version="1.0"?>
+<sdf version="1.7">
+  <model name="robot_with_depth_camera">
+    <link name="base_link">
+      <visual>
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.3</size>
+          </box>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.3</size>
+          </box>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass>10.0</mass>
+        <inertia>
+          <ixx>0.4</ixx>
+          <iyy>0.4</iyy>
+          <izz>0.2</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <!-- Depth camera -->
+    <link name="depth_camera_link">
+      <visual>
+        <geometry>
+          <box>
+            <size>0.05 0.05 0.05</size>
+          </box>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <box>
+            <size>0.05 0.05 0.05</size>
+          </box>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass>0.1</mass>
+        <inertia>
+          <ixx>0.0001</ixx>
+          <iyy>0.0001</iyy>
+          <izz>0.0001</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <joint name="depth_camera_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>depth_camera_link</child>
+      <origin xyz="0.25 0 0.15" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Depth camera sensor -->
+    <gazebo reference="depth_camera_link">
+      <sensor type="depth" name="depth_camera">
+        <update_rate>30.0</update_rate>
+        <camera name="head_camera">
+          <horizontal_fov>1.047</horizontal_fov> <!-- 60 degrees -->
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>10.0</far>
+          </clip>
+        </camera>
+        <plugin filename="gz-sim-depth-camera-system" name="gz::sim::systems::DepthCamera">
+        </plugin>
+      </sensor>
+    </gazebo>
+  </model>
+</sdf>`}
+/>
+
+### IMU Simulation
+
+<CodeExample
+  language="xml"
+  title="IMU Sensor Configuration"
+  description="Configuring an IMU for balance and orientation sensing in humanoid robots"
+  code={`<?xml version="1.0"?>
+<sdf version="1.7">
+  <model name="robot_with_imu">
+    <link name="base_link">
+      <visual>
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.3</size>
+          </box>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.3</size>
+          </box>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass>10.0</mass>
+        <inertia>
+          <ixx>0.4</ixx>
+          <iyy>0.4</iyy>
+          <izz>0.2</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <!-- IMU sensor -->
+    <link name="imu_link">
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>1e-6</ixx>
+          <iyy>1e-6</iyy>
+          <izz>1e-6</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <joint name="imu_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>imu_link</child>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    </joint>
+
+    <!-- IMU sensor configuration -->
+    <gazebo reference="imu_link">
+      <sensor type="imu" name="imu_sensor">
+        <always_on>true</always_on>
+        <update_rate>100</update_rate>
+        <imu>
+          <angular_velocity>
+            <x>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+              </noise>
+            </z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+              </noise>
+            </z>
+          </linear_acceleration>
+        </imu>
+        <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
+        </plugin>
+      </sensor>
+    </gazebo>
+  </model>
+</sdf>`}
+/>
+
+## Creating Complex Worlds
+
+### Dynamic Elements and Interactive Objects
+
+<SimulationExample
+  title="Interactive World with Dynamic Objects"
+  description="A world with moveable objects and interactive elements"
+  code={`<?xml version="1.0"?>
+<sdf version="1.7">
+  <world name="interactive_world">
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <!-- Ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Lighting -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- Static furniture -->
+    <model name="table">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.5 0.8 0.8</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.5 0.8 0.8</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <pose>2 0 0.4 0 0 0</pose>
+    </model>
+
+    <!-- Dynamic objects that can be manipulated -->
+    <model name="movable_box">
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.2</size>
+            </box>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0.8</mu>
+                <mu2>0.8</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.2 0.2 0.2</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.9 0.6 0.2 1</ambient>
+            <diffuse>0.9 0.6 0.2 1</diffuse>
+          </material>
+        </visual>
+        <inertial>
+          <mass>2.0</mass>
+          <inertia>
+            <ixx>0.00133</ixx>
+            <iyy>0.00133</iyy>
+            <izz>0.00133</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <pose>-1 0 0.1 0 0 0</pose>
+    </model>
+
+    <model name="movable_sphere">
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.15</radius>
+            </sphere>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0.3</mu>
+                <mu2>0.3</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.15</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>0.2 0.6 0.9 1</ambient>
+            <diffuse>0.2 0.6 0.9 1</diffuse>
+          </material>
+        </visual>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia>
+            <ixx>0.0045</ixx>
+            <iyy>0.0045</iyy>
+            <izz>0.0045</izz>
+          </inertia>
+        </inertial>
+      </link>
+      <pose>0 1 0.15 0 0 0</pose>
+    </model>
+
+    <!-- Articulated object -->
+    <model name="articulated_door">
+      <link name="door_frame">
+        <static>true</static>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.1 2.0 2.0</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.1 2.0 2.0</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.4 0.4 0.4 1</ambient>
+            <diffuse>0.4 0.4 0.4 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <link name="door">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.05 1.9 0.8</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.05 1.9 0.8</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.7 0.5 0.3 1</ambient>
+            <diffuse>0.7 0.5 0.3 1</diffuse>
+          </material>
+        </visual>
+        <inertial>
+          <mass>10.0</mass>
+          <inertia>
+            <ixx>1.0</ixx>
+            <iyy>1.0</iyy>
+            <izz>1.0</izz>
+          </inertia>
+        </inertial>
+      </link>
+
+      <joint name="door_hinge" type="revolute">
+        <parent>door_frame</parent>
+        <child>door</child>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower>-1.57</lower>
+            <upper>0</upper>
+          </limit>
+        </axis>
+        <pose>0.025 0 0 0 0 0</pose>
+      </joint>
+    </model>
+  </world>
+</sdf>`}
+  language="xml"
+  simulationType="gazebo"
+>
+
+This interactive world includes:
+- Static furniture that serves as obstacles
+- Dynamic objects that can be moved by robot interaction
+- An articulated door with a revolute joint
+
+</SimulationExample>
+
+## Troubleshooting Common Simulation Issues
+
+### Physics Instability
+
+<ConceptExplainer
+  concept="Physics Instability in Gazebo"
+  description="Physics instability occurs when simulation parameters cause unrealistic behavior or numerical errors."
+  examples={[
+    "Objects vibrating or flying apart",
+    "Simulation running slower than real-time",
+    "Objects passing through each other"
+  ]}
+  relatedConcepts={["Physics", "Stability", "Solver", "Time Step"]}
+>
+
+### Common Causes and Solutions
+
+1. **Time Step Too Large**: Reduce max_step_size in physics configuration
+2. **Solver Iterations Too Low**: Increase solver iterations for better accuracy
+3. **Inertia Mismatch**: Ensure proper inertia tensors for all links
+4. **High Mass Ratios**: Avoid extreme differences in mass between connected objects
+
+</ConceptExplainer>
+
+### Sensor Noise and Performance Optimization
+
+<CodeExample
+  language="python"
+  title="Optimizing Sensor Performance in ROS 2"
+  description="Example of optimizing sensor data processing for real-time performance"
+  code={`#!/usr/bin/env python3
+
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import LaserScan, Image, Imu
+from cv_bridge import CvBridge
+import numpy as np
+
+class SensorOptimizer(Node):
+    def __init__(self):
+        super().__init__('sensor_optimizer')
+
+        # Create subscribers with appropriate QoS profiles
+        self.scan_sub = self.create_subscription(
+            LaserScan,
+            '/scan',
+            self.scan_callback,
+            10  # Keep only the 10 most recent messages
+        )
+
+        self.image_sub = self.create_subscription(
+            Image,
+            '/camera/image_raw',
+            self.image_callback,
+            5  # Lower queue size for images to reduce memory usage
+        )
+
+        self.imu_sub = self.create_subscription(
+            Imu,
+            '/imu/data',
+            self.imu_callback,
+            100  # Higher queue for critical IMU data
+        )
+
+        self.cv_bridge = CvBridge()
+        self.scan_rate_limiter = 0
+
+    def scan_callback(self, msg):
+        # Process every 3rd scan to reduce computational load
+        self.scan_rate_limiter = (self.scan_rate_limiter + 1) % 3
+        if self.scan_rate_limiter != 0:
+            return
+
+        # Process laser scan data
+        valid_ranges = [r for r in msg.ranges if r >= msg.range_min and r <= msg.range_max]
+        if valid_ranges:
+            avg_distance = sum(valid_ranges) / len(valid_ranges)
+            self.get_logger().info(f'Average distance: {avg_distance:.2f}m')
+
+    def image_callback(self, msg):
+        # Convert to OpenCV and process
+        cv_image = self.cv_bridge.imgmsg_to_cv2(msg, 'bgr8')
+
+        # Process only center region to reduce computation
+        h, w = cv_image.shape[:2]
+        center_region = cv_image[h//4:3*h//4, w//4:3*w//4]
+
+        # Simple processing example
+        gray = cv2.cvtColor(center_region, cv2.COLOR_BGR2GRAY)
+        # Further processing...
+
+    def imu_callback(self, msg):
+        # Process IMU data for balance control
+        orientation = msg.orientation
+        angular_velocity = msg.angular_velocity
+        linear_acceleration = msg.linear_acceleration
+
+        # Implement filtering to reduce noise
+        # (In practice, you'd use a proper filter like a Kalman filter)
+
+def main(args=None):
+    rclpy.init(args=args)
+    optimizer = SensorOptimizer()
+
+    try:
+        rclpy.spin(optimizer)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        optimizer.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Summary
+
+This chapter covered advanced Gazebo simulation techniques including:
+- Creating complex, realistic worlds with obstacles and furniture
+- Working with SDF and advanced URDF for robot models
+- Configuring physics properties and collision parameters
+- Simulating core sensors (LiDAR, depth cameras, IMUs)
+- Creating interactive environments with dynamic objects
+- Troubleshooting common simulation issues
+
+The next chapter will explore Unity integration for high-fidelity visualization and human-robot interaction.
+
+</ChapterLayout>

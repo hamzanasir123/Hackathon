@@ -1,0 +1,237 @@
+/**
+ * CSS Module for SimulationExample Component
+ */
+
+.simulationExample {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #cbd5e0;
+}
+
+.titleSection {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.icon {
+  font-size: 1.25rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  align-self: flex-start;
+}
+
+.controlButton {
+  padding: 0.5rem 1rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #4a5568;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.controlButton:hover {
+  background-color: #edf2f7;
+}
+
+.controlButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.runButton.running {
+  background-color: #2ecc71;
+  color: white;
+  border-color: #27ae60;
+}
+
+.copyButton {
+  background-color: #e2e8f0;
+}
+
+.copyButton:hover {
+  background-color: #cbd5e0;
+}
+
+.description {
+  margin-bottom: 1rem;
+  color: #4a5568;
+  line-height: 1.6;
+}
+
+.codeBlock {
+  margin: 1rem 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #edf2f7;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+.language {
+  font-family: monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.copyButton {
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 2px;
+  font-size: 0.875rem;
+}
+
+.copyButton:hover {
+  background-color: #cbd5e0;
+  color: #2d3748;
+}
+
+.pre {
+  margin: 0;
+  padding: 1rem;
+  background-color: #ffffff;
+  overflow-x: auto;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #2d3748;
+  white-space: pre-wrap;
+}
+
+.code {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+.preview {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.previewHeader {
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.previewHeader h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #2d3748;
+}
+
+.previewContent {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.defaultPreview {
+  width: 100%;
+  text-align: center;
+  color: #718096;
+}
+
+.simulationPlaceholder {
+  padding: 2rem;
+  border: 2px dashed #cbd5e0;
+  border-radius: 6px;
+  background-color: #f8fafc;
+}
+
+.simulationIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.runningIndicator {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: #2ecc71;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.infoBox {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #ebf8ff;
+  border-left: 4px solid #3182ce;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #2d3748;
+}
+
+.infoBox strong {
+  color: #2b6cb0;
+}
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .controls {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .simulationExample {
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: 1rem;
+  }
+
+  .previewContent {
+    min-height: 150px;
+  }
+}

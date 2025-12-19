@@ -32,7 +32,9 @@ const sidebars = {
       collapsed: false,
       items: [
         'module-2-digital-twin/index',
-        'module-2-digital-twin/gazebo-simulation',
+        'module-2-digital-twin/introduction-to-digital-twins',
+        'module-2-digital-twin/mastering-gazebo-simulation',
+        'module-2-digital-twin/unity-integration',
       ],
     },
     {
@@ -41,7 +43,19 @@ const sidebars = {
       collapsed: false,
       items: [
         'module-3-ai-robot-brain/index',
-        'module-3-ai-robot-brain/perception-systems',
+        'module-3-ai-robot-brain/overview-of-nvidia-isaac',
+        'module-3-ai-robot-brain/advanced-perception',
+        'module-3-ai-robot-brain/navigation-path-planning',
+        {
+          type: 'category',
+          label: 'Isaac Sim Examples',
+          items: [
+            'module-3-ai-robot-brain/examples/basic-asset-loading',
+            'module-3-ai-robot-brain/examples/sensor-equipped-humanoid',
+            'module-3-ai-robot-brain/examples/perception-pipeline',
+            'module-3-ai-robot-brain/examples/full-navigation-stack',
+          ]
+        },
       ],
     },
     {
