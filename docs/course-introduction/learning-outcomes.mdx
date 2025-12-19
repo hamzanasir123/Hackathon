@@ -1,0 +1,205 @@
+---
+sidebar_position: 3
+title: "Learning Outcomes"
+---
+
+# Learning Outcomes
+
+This course is designed to provide you with specific, measurable skills and knowledge in Physical AI and humanoid robotics. Upon completion, you will be able to demonstrate the following six key learning outcomes:
+
+## Outcome 1: ROS 2 Fundamentals for Humanoid Robotics
+
+Upon completion of this outcome, you will be able to understand the Robot Operating System 2 (ROS 2) architecture and how it enables communication between different components of a humanoid robot. You'll learn to create nodes, publishers, subscribers, services, and actions that form the nervous system of your robot.
+
+**Skills Gained:**
+- Create ROS 2 nodes in Python
+- Implement publishers and subscribers for inter-component communication
+- Design services and actions for complex interactions
+- Debug ROS 2 systems and troubleshoot communication issues
+
+**Tools Used:**
+- ROS 2 Humble Hawksbill or Iron Irwini
+- rclpy for Python development
+- RViz2 for visualization
+- ros2cli for command-line tools
+
+**Mindset Shifts:**
+- Understanding distributed systems architecture
+- Appreciating modular design principles in robotics
+- Recognizing the importance of standardized interfaces
+
+## Outcome 2: Digital Twin and Simulation Environments
+
+You will master the creation and utilization of digital twin environments for humanoid robotics, enabling safe testing and development before deployment on physical robots. This includes understanding simulation physics, sensor modeling, and the transfer of learned behaviors to real robots.
+
+**Skills Gained:**
+- Create accurate simulation environments using Gazebo Harmonic
+- Model humanoid robots with realistic physics properties
+- Implement sensor simulation for cameras, IMUs, and other sensors
+- Develop domain randomization techniques for robust control
+
+**Tools Used:**
+- Gazebo Harmonic for physics simulation
+- Unity for advanced visualization (optional)
+- URDF for robot description
+- ROS 2 simulation packages
+
+**Mindset Shifts:**
+- Appreciating the value of safe testing environments
+- Understanding the reality gap between simulation and reality
+- Recognizing the importance of simulation-to-reality transfer
+
+## Outcome 3: AI-Brain: Perception and Planning Systems
+
+You will develop expertise in perception and planning systems for humanoid robots, including computer vision, sensor fusion, path planning, and decision-making algorithms that enable autonomous behavior in complex environments.
+
+**Skills Gained:**
+- Implement computer vision algorithms for object detection and recognition
+- Design sensor fusion systems combining multiple modalities
+- Create path planning algorithms for navigation and manipulation
+- Develop decision-making systems for autonomous behavior
+
+**Tools Used:**
+- NVIDIA Isaac Sim for perception simulation
+- Isaac ROS 3.x for perception pipelines
+- OpenCV for computer vision
+- Navigation2 (Nav2) for path planning
+
+**Mindset Shifts:**
+- Understanding the integration of perception and action
+- Appreciating the complexity of real-world decision making
+- Recognizing the importance of robust perception systems
+
+## Outcome 4: Vision-Language-Action (VLA) Models for Humanoid Control
+
+You will learn to implement and utilize Vision-Language-Action models that enable natural human-robot interaction through voice commands and visual understanding, bridging the gap between human communication and robotic action.
+
+**Skills Gained:**
+- Integrate OpenAI Whisper and open-source alternatives for speech recognition
+- Implement LLM-based task planning with GPT-4o and Llama 3
+- Create direct vision-language-to-action mapping systems
+- Develop multimodal AI systems combining vision, language, and action
+
+**Tools Used:**
+- OpenVLA for vision-language-action models
+- OpenAI Whisper for speech recognition
+- Hugging Face Transformers for LLM integration
+- NVIDIA Isaac Sim for VLA simulation
+
+**Mindset Shifts:**
+- Understanding multimodal AI integration
+- Appreciating natural human-robot interaction
+- Recognizing the potential of language-guided robotics
+
+## Outcome 5: Humanoid-Specific Development and Control
+
+You will gain specialized knowledge in humanoid robotics, including bipedal locomotion, balance control, whole-body control, and the unique challenges of developing for humanoid form factors.
+
+**Skills Gained:**
+- Implement bipedal locomotion algorithms
+- Design balance control systems for dynamic stability
+- Create whole-body control frameworks
+- Address humanoid-specific kinematic and dynamic challenges
+
+**Tools Used:**
+- Humanoid-specific ROS 2 packages
+- Control theory implementations
+- Simulation environments for humanoid robots
+- Real-time control systems
+
+**Mindset Shifts:**
+- Understanding the complexity of humanoid locomotion
+- Appreciating the challenges of human-centered design
+- Recognizing the unique advantages of humanoid form factors
+
+## Outcome 6: Capstone Integration and Project Development
+
+You will demonstrate the ability to integrate all learned components into a comprehensive humanoid robotics project, applying systems engineering principles to create a functional physical AI system that demonstrates learned capabilities.
+
+**Skills Gained:**
+- Integrate multiple modules into a cohesive system
+- Apply systems engineering principles to robotics
+- Develop project management skills for complex technical projects
+- Demonstrate technical communication through project presentation
+
+**Tools Used:**
+- All tools from previous outcomes
+- Project management and documentation tools
+- Presentation and communication platforms
+- Version control and collaboration tools
+
+**Mindset Shifts:**
+- Understanding systems integration complexity
+- Appreciating the value of comprehensive project experience
+- Recognizing the importance of technical communication
+
+## Connection to Modules
+
+Each learning outcome connects directly to specific course modules:
+
+- **Outcome 1** → Module 1: The Robotic Nervous System (ROS 2)
+- **Outcome 2** → Module 2: The Digital Twin (Gazebo & Unity)
+- **Outcome 3** → Module 3: The AI-Robot Brain (NVIDIA Isaac™)
+- **Outcome 4** → Module 4: Vision-Language-Action (VLA)
+- **Outcome 5** → Integration across all modules with humanoid-specific focus
+- **Outcome 6** → Capstone project integrating all modules
+
+## Assessment Criteria
+
+Each outcome will be assessed through practical demonstrations with simulation environments, code implementation and debugging exercises, project-based evaluations, and peer review and collaboration exercises. You'll be able to clearly articulate your understanding of each outcome and demonstrate the associated skills through hands-on implementation.
+
+import LearningOutcomeCard from '@site/src/components/LearningOutcomeCard';
+
+<LearningOutcomeCard
+  outcomeNumber={1}
+  title="ROS 2 Fundamentals for Humanoid Robotics"
+  description="Understand the Robot Operating System 2 (ROS 2) architecture and how it enables communication between different components of a humanoid robot. Learn to create nodes, publishers, subscribers, services, and actions that form the nervous system of your robot."
+  skillsGained={["Create ROS 2 nodes in Python", "Implement publishers/subscribers", "Design services and actions", "Debug ROS 2 systems"]}
+  toolsUsed={["ROS 2 Humble Hawksbill", "rclpy", "RViz2", "ros2cli"]}
+  connectionToModules={["ROS 2"]}
+/>
+
+<LearningOutcomeCard
+  outcomeNumber={2}
+  title="Digital Twin and Simulation Environments"
+  description="Master the creation and utilization of digital twin environments for humanoid robotics, enabling safe testing and development before deployment on physical robots. This includes understanding simulation physics, sensor modeling, and the transfer of learned behaviors to real robots."
+  skillsGained={["Create accurate simulation environments", "Model humanoid robots with realistic physics", "Implement sensor simulation", "Develop domain randomization techniques"]}
+  toolsUsed={["Gazebo Harmonic", "Unity", "URDF", "ROS 2 simulation packages"]}
+  connectionToModules={["Simulation"]}
+/>
+
+<LearningOutcomeCard
+  outcomeNumber={3}
+  title="AI-Brain: Perception and Planning Systems"
+  description="Develop expertise in perception and planning systems for humanoid robots, including computer vision, sensor fusion, path planning, and decision-making algorithms that enable autonomous behavior in complex environments."
+  skillsGained={["Implement computer vision algorithms", "Design sensor fusion systems", "Create path planning algorithms", "Develop decision-making systems"]}
+  toolsUsed={["NVIDIA Isaac Sim", "Isaac ROS 3.x", "OpenCV", "Navigation2"]}
+  connectionToModules={["AI-Brain"]}
+/>
+
+<LearningOutcomeCard
+  outcomeNumber={4}
+  title="Vision-Language-Action (VLA) Models for Humanoid Control"
+  description="Learn to implement and utilize Vision-Language-Action models that enable natural human-robot interaction through voice commands and visual understanding, bridging the gap between human communication and robotic action."
+  skillsGained={["Integrate speech recognition", "Implement LLM-based task planning", "Create vision-language-to-action mapping", "Develop multimodal AI systems"]}
+  toolsUsed={["OpenVLA", "OpenAI Whisper", "Hugging Face Transformers", "NVIDIA Isaac Sim"]}
+  connectionToModules={["VLA"]}
+/>
+
+<LearningOutcomeCard
+  outcomeNumber={5}
+  title="Humanoid-Specific Development and Control"
+  description="Gain specialized knowledge in humanoid robotics, including bipedal locomotion, balance control, whole-body control, and the unique challenges of developing for humanoid form factors."
+  skillsGained={["Implement bipedal locomotion", "Design balance control systems", "Create whole-body control frameworks", "Address humanoid-specific challenges"]}
+  toolsUsed={["Humanoid-specific ROS 2 packages", "Control theory implementations", "Simulation environments", "Real-time control systems"]}
+  connectionToModules={["All Modules"]}
+/>
+
+<LearningOutcomeCard
+  outcomeNumber={6}
+  title="Capstone Integration and Project Development"
+  description="Demonstrate the ability to integrate all learned components into a comprehensive humanoid robotics project, applying systems engineering principles to create a functional physical AI system that demonstrates learned capabilities."
+  skillsGained={["Integrate multiple modules", "Apply systems engineering", "Develop project management skills", "Demonstrate technical communication"]}
+  toolsUsed={["All tools from previous outcomes", "Project management tools", "Presentation platforms", "Version control"]}
+  connectionToModules={["All Modules"]}
+/>

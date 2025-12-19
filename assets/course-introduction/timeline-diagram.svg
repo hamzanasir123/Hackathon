@@ -1,0 +1,70 @@
+<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .week { fill: #3498db; stroke: #2980b9; stroke-width: 1; }
+    .module1 { fill: #3498db; }
+    .module2 { fill: #9b59b6; }
+    .module3 { fill: #e67e22; }
+    .module4 { fill: #2ecc71; }
+    .capstone { fill: #e74c3c; }
+    .label { fill: white; font-family: Arial, sans-serif; font-size: 12px; text-anchor: middle; }
+    .title { fill: #2c3e50; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-anchor: middle; }
+  </style>
+
+  <!-- Title -->
+  <text x="400" y="30" class="title">Physical AI Course Timeline (13 Weeks)</text>
+
+  <!-- Week blocks -->
+  <!-- Weeks 1-2: Foundation and motivation -->
+  <rect x="50" y="80" width="100" height="50" class="week module1" />
+  <text x="100" y="110" class="label">Weeks 1-2\nFoundation</text>
+
+  <!-- Weeks 3-4: ROS 2 fundamentals -->
+  <rect x="170" y="80" width="100" height="50" class="week module1" />
+  <text x="220" y="110" class="label">Weeks 3-4\nROS 2</text>
+
+  <!-- Weeks 5-6: Simulation -->
+  <rect x="290" y="80" width="100" height="50" class="week module2" />
+  <text x="340" y="110" class="label">Weeks 5-6\nSimulation</text>
+
+  <!-- Weeks 7-8: AI Brain -->
+  <rect x="410" y="80" width="100" height="50" class="week module3" />
+  <text x="460" y="110" class="label">Weeks 7-8\nAI Brain</text>
+
+  <!-- Weeks 9-10: VLA Models -->
+  <rect x="530" y="80" width="100" height="50" class="week module4" />
+  <text x="580" y="110" class="label">Weeks 9-10\nVLA Models</text>
+
+  <!-- Weeks 11-12: Integration -->
+  <rect x="650" y="80" width="100" height="50" class="week module4" />
+  <text x="700" y="110" class="label">Weeks 11-12\nIntegration</text>
+
+  <!-- Week 13: Capstone -->
+  <rect x="350" y="200" width="100" height="50" class="week capstone" />
+  <text x="400" y="230" class="label">Week 13\nCapstone</text>
+
+  <!-- Connection lines -->
+  <line x1="150" y1="105" x2="170" y2="105" stroke="#7f8c8d" stroke-width="2" />
+  <line x1="270" y1="105" x2="290" y2="105" stroke="#7f8c8d" stroke-width="2" />
+  <line x1="390" y1="105" x2="410" y2="105" stroke="#7f8c8d" stroke-width="2" />
+  <line x1="510" y1="105" x2="530" y2="105" stroke="#7f8c8d" stroke-width="2" />
+  <line x1="630" y1="105" x2="650" y2="105" stroke="#7f8c8d" stroke-width="2" />
+
+  <!-- Capstone connection -->
+  <line x1="400" y1="130" x2="400" y2="200" stroke="#e74c3c" stroke-width="3" stroke-dasharray="5,5" />
+
+  <!-- Module labels -->
+  <rect x="50" y="280" width="30" height="20" class="week module1" />
+  <text x="90" y="295" class="label" text-anchor="start">ROS 2 Module</text>
+
+  <rect x="200" y="280" width="30" height="20" class="week module2" />
+  <text x="240" y="295" class="label" text-anchor="start">Simulation</text>
+
+  <rect x="350" y="280" width="30" height="20" class="week module3" />
+  <text x="390" y="295" class="label" text-anchor="start">AI Brain</text>
+
+  <rect x="500" y="280" width="30" height="20" class="week module4" />
+  <text x="540" y="295" class="label" text-anchor="start">VLA Models</text>
+
+  <rect x="650" y="280" width="30" height="20" class="week capstone" />
+  <text x="690" y="295" class="label" text-anchor="start">Capstone</text>
+</svg>

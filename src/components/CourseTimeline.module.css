@@ -1,0 +1,127 @@
+.timelineContainer {
+  padding: 2rem 0;
+  margin: 2rem 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.timelineTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+.timelineVisualization {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.weeksContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.weekBlock {
+  min-width: 120px;
+  padding: 1rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background-color: white;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.weekNumber {
+  font-weight: bold;
+  color: #3498db;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.weekTitle {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.weekModules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.moduleTag {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #ecf0f1;
+  border-radius: 4px;
+  color: #2c3e50;
+}
+
+.moduleConnections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  margin-top: 1rem;
+}
+
+.moduleConnection {
+  font-weight: 500;
+  color: #27ae60;
+}
+
+.capstoneConnection {
+  font-weight: 500;
+  color: #e74c3c;
+}
+
+.timelineLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #f0f7ff;
+  border-radius: 6px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.legendColor {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.rosModule {
+  background-color: #3498db;
+}
+
+.simModule {
+  background-color: #9b59b6;
+}
+
+.aiModule {
+  background-color: #e67e22;
+}
+
+.vlaModule {
+  background-color: #2ecc71;
+}

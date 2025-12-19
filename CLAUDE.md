@@ -217,6 +217,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 - Markdown, Python 3.10+, XML/YAML configuration files + Docusaurus v3+, React/MDX, ROS 2 (Humble/Iron), Gazebo Harmonic, Unity (for simulation examples) (001-digital-twin-gazebo-unity)
 - JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types + Docusaurus v3+, React, MDX, @docusaurus/module-type-aliases, @docusaurus/types, NVIDIA Isaac Sim, Isaac ROS 3.x, Nav2 (003-isaac-platform)
 - Python 3.10+ (for ROS 2 compatibility), JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types + Docusaurus v3+, React, MDX, @docusaurus/module-type-aliases, @docusaurus/types, NVIDIA Isaac Sim, Isaac ROS 3.x, OpenVLA, Whisper, Hugging Face Transformers, ROS 2 (Humble Hawksbill or Iron Irwini) (001-vla-models)
+- Markdown, JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types (004-course-intro)
 
 ## Recent Changes
 - 001-docusaurus-book-layout: Added JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types
+- 004-course-intro: Added Markdown, JavaScript/Node.js (Docusaurus v3+ requirement) + Docusaurus (v3+), React, MDX, @docusaurus/module-type-aliases, @docusaurus/types for Course Introduction educational content

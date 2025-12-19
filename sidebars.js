@@ -7,6 +7,17 @@ const sidebars = {
     'intro/index',
     {
       type: 'category',
+      label: 'Course Introduction: Why Physical AI Matters',
+      collapsed: false,
+      items: [
+        'course-introduction/index',
+        'course-introduction/why-physical-ai-matters',
+        'course-introduction/learning-outcomes',
+        'course-introduction/weekly-breakdown',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Introduction',
       items: [
         'intro/index',

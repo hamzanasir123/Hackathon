@@ -1,0 +1,277 @@
+---
+sidebar_position: 4
+title: "Weekly Breakdown"
+---
+
+# Weekly Breakdown
+
+This 13-week course follows pedagogical best practices to build your understanding of Physical AI and humanoid robotics progressively. Each week includes specific topics, objectives, hands-on elements, and connections to the core modules and capstone project.
+
+## Course Timeline Visualization
+
+import CourseTimeline from '@site/src/components/CourseTimeline';
+
+<CourseTimeline
+  weeks={[
+    { title: "Foundation & Motivation", modules: ["Introduction"] },
+    { title: "Foundation & Motivation", modules: ["Introduction"] },
+    { title: "ROS 2 Fundamentals", modules: ["ROS 2"] },
+    { title: "ROS 2 Integration", modules: ["ROS 2"] },
+    { title: "Digital Twin & Simulation", modules: ["Simulation"] },
+    { title: "Simulation Applications", modules: ["Simulation"] },
+    { title: "AI Brain & Perception", modules: ["AI-Brain"] },
+    { title: "Planning & Decision Making", modules: ["AI-Brain"] },
+    { title: "VLA Models", modules: ["VLA"] },
+    { title: "Advanced VLA Applications", modules: ["VLA"] },
+    { title: "Integration & Humanoid Dev", modules: ["All"] },
+    { title: "Integration & Humanoid Dev", modules: ["All"] },
+    { title: "Capstone Preparation", modules: ["All"] }
+  ]}
+/>
+
+## Week-by-Week Schedule
+
+### Weeks 1-2: Foundation and Motivation
+
+**Focus**: Understanding why Physical AI matters and establishing foundational concepts
+
+**Topics**:
+- Introduction to embodied intelligence and Physical AI
+- Transition from digital AI to physical AI
+- Why humanoid form factors are ideal for human-centered environments
+- Real-world applications and future impact
+- Role of abundant interaction data in training robust systems
+
+**Objectives**:
+- Articulate 5+ key reasons why Physical AI is important for the future
+- Understand the paradigm shift from traditional approaches
+- Identify current industry developments and 2025 trends
+- Recognize the transformative potential of Physical AI
+
+**Hands-On Elements**:
+- Explore current Physical AI implementations from Unitree, Boston Dynamics, Figure, Tesla
+- Analyze case studies of Physical AI applications
+- Create personal reflection on the importance of Physical AI
+
+**Module Connections**:
+- Introduction to all four core modules (ROS 2, Simulation, AI-Brain, VLA)
+- Foundation for capstone project concepts
+
+**Capstone Connections**:
+- Establishes the vision for capstone project
+- Identifies potential capstone applications
+
+### Weeks 3-4: Module 1 - ROS 2 Fundamentals and Integration
+
+**Focus**: Understanding the Robot Operating System 2 (ROS 2) as the communication backbone
+
+**Topics**:
+- ROS 2 architecture and concepts
+- Creating ROS 2 nodes in Python
+- Publishers and subscribers for inter-component communication
+- Services and actions for complex interactions
+- Debugging and troubleshooting ROS 2 systems
+- Integration with humanoid robot components
+
+**Objectives**:
+- Create functional ROS 2 nodes for robot components
+- Implement publisher-subscriber communication patterns
+- Design services and actions for robot behaviors
+- Debug complex ROS 2 systems effectively
+
+**Hands-On Elements**:
+- Create a simple ROS 2 package
+- Implement a publisher and subscriber
+- Create a service for robot commands
+- Build a basic ROS 2 node for a simulated humanoid robot
+
+**Module Connections**:
+- Provides communication foundation for all other modules
+- Enables integration between robot components
+
+**Capstone Connections**:
+- Establishes communication infrastructure for capstone project
+- Provides framework for integrating capstone components
+
+### Weeks 5-6: Module 2 - Digital Twin and Simulation Environments
+
+**Focus**: Creating and utilizing digital twin environments for safe testing and development
+
+**Topics**:
+- Digital twin concepts and applications in robotics
+- Gazebo Harmonic physics simulation
+- Robot modeling with URDF and realistic physics
+- Sensor simulation and modeling
+- Simulation-to-reality transfer techniques
+- Domain randomization for robust control
+
+**Objectives**:
+- Create accurate simulation environments for humanoid robots
+- Model robot kinematics and dynamics in simulation
+- Implement realistic sensor simulation
+- Apply domain randomization techniques
+
+**Hands-On Elements**:
+- Create a URDF model for a humanoid robot
+- Set up physics simulation in Gazebo
+- Implement sensor simulation (cameras, IMUs, etc.)
+- Test robot behaviors in simulation before real-world deployment
+
+**Module Connections**:
+- Provides safe testing environment for all modules
+- Enables development before access to physical hardware
+
+**Capstone Connections**:
+- Establishes simulation environment for capstone testing
+- Enables iterative development for capstone project
+
+### Weeks 7-8: Module 3 - AI Brain and Perception Systems
+
+**Focus**: Developing perception and planning systems for autonomous behavior
+
+**Topics**:
+- Computer vision for robot perception
+- Sensor fusion combining multiple modalities
+- Path planning algorithms for navigation
+- Decision-making systems for autonomous behavior
+- NVIDIA Isaac Sim for perception simulation
+- Isaac ROS 3.x for perception pipelines
+
+**Objectives**:
+- Implement computer vision algorithms for robot perception
+- Design sensor fusion systems for robust perception
+- Create path planning algorithms for navigation
+- Develop decision-making systems for autonomous behavior
+
+**Hands-On Elements**:
+- Implement object detection for robot perception
+- Create sensor fusion for multiple sensor inputs
+- Develop path planning for robot navigation
+- Build decision-making system for autonomous tasks
+
+**Module Connections**:
+- Processes data from simulation and real sensors
+- Provides intelligence for VLA module integration
+
+**Capstone Connections**:
+- Provides perception and planning for capstone project
+- Enables autonomous behavior in capstone demonstration
+
+### Weeks 9-10: Module 4 - Vision-Language-Action Models
+
+**Focus**: Implementing Vision-Language-Action models for natural human-robot interaction
+
+**Topics**:
+- OpenAI Whisper and speech recognition integration
+- LLM-based task planning with GPT-4o and Llama 3
+- Direct vision-language-to-action mapping
+- Multimodal AI systems combining vision, language, and action
+- OpenVLA for vision-language-action models
+- Human-robot interaction design
+
+**Objectives**:
+- Integrate speech recognition for natural robot commands
+- Implement LLM-based task decomposition
+- Create direct vision-language-to-action systems
+- Develop multimodal AI integration
+
+**Hands-On Elements**:
+- Integrate Whisper for speech-to-text processing
+- Implement LLM-based task planning
+- Create vision-language-action pipeline
+- Test multimodal interaction with simulated robot
+
+**Module Connections**:
+- Uses perception data from AI-Brain module
+- Relies on ROS 2 for communication
+- Utilizes simulation for testing
+
+**Capstone Connections**:
+- Enables natural interaction for capstone demonstration
+- Integrates all previous modules into multimodal system
+
+### Weeks 11-12: Integration and Humanoid-Specific Development
+
+**Focus**: Integrating all modules and developing humanoid-specific capabilities
+
+**Topics**:
+- Systems integration across all four modules
+- Humanoid-specific locomotion and control
+- Balance and stability for bipedal robots
+- Whole-body control frameworks
+- Advanced humanoid behaviors
+- Integration testing and debugging
+
+**Objectives**:
+- Integrate all four core modules into cohesive system
+- Implement humanoid-specific locomotion algorithms
+- Design balance control systems for stability
+- Create whole-body control frameworks
+
+**Hands-On Elements**:
+- Integrate ROS 2, Simulation, AI-Brain, and VLA modules
+- Implement bipedal locomotion in simulation
+- Test integrated system behaviors
+- Debug complex multi-module interactions
+
+**Module Connections**:
+- Integrates all previous modules
+- Applies all learned concepts in unified system
+
+**Capstone Connections**:
+- Direct preparation for capstone project
+- Tests all capstone components together
+
+### Week 13: Capstone Preparation and Presentation
+
+**Focus**: Finalizing capstone project and preparing for presentation
+
+**Topics**:
+- Capstone project integration and testing
+- Technical presentation skills
+- Project documentation and reporting
+- Peer review and feedback
+- Future directions and next steps
+
+**Objectives**:
+- Complete integrated capstone project
+- Present technical work effectively
+- Document project outcomes and lessons learned
+- Plan for continued learning and development
+
+**Hands-On Elements**:
+- Finalize capstone project implementation
+- Prepare technical presentation
+- Create project documentation
+- Conduct peer reviews and feedback sessions
+
+**Module Connections**:
+- Demonstrates integration of all four modules
+- Shows comprehensive understanding of Physical AI
+
+**Capstone Connections**:
+- Final capstone project demonstration
+- Comprehensive assessment of learning outcomes
+
+## Assessment Connections
+
+Each week includes high-level connections to capstone project development:
+
+- **Weeks 1-2**: Establish capstone vision and requirements
+- **Weeks 3-4**: Develop communication infrastructure for capstone
+- **Weeks 5-6**: Create simulation environment for capstone testing
+- **Weeks 7-8**: Implement perception and planning for capstone
+- **Weeks 9-10**: Add human interaction capabilities to capstone
+- **Weeks 11-12**: Integrate all components for capstone
+- **Week 13**: Demonstrate complete capstone project
+
+## Prerequisites and Dependencies
+
+Each week builds upon previous weeks:
+
+- **Weeks 3-4** require understanding from Weeks 1-2
+- **Weeks 5-6** require ROS 2 knowledge from Weeks 3-4
+- **Weeks 7-8** require simulation knowledge from Weeks 5-6
+- **Weeks 9-10** require perception knowledge from Weeks 7-8
+- **Weeks 11-12** require all previous knowledge
+- **Week 13** requires complete integration of all previous weeks
