@@ -1,0 +1,1192 @@
+---
+sidebar_label: "Example 3: Perception-Integrated Planning"
+sidebar_position: 3
+title: "Example 3: Perception-Integrated Planning"
+description: "Adding perception feedback to planning, creating conditional action sequences, and testing with environment-dependent commands"
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+
+<ChapterLayout
+  title="Example 3: Perception-Integrated Planning"
+  description="Adding perception feedback to planning, creating conditional action sequences, and testing with environment-dependent commands"
+  previous={{path: '/docs/module-4-vision-language-action/examples/llm-task-decomposition', title: 'Example 2: LLM Task Decomposition'}}
+  next={{path: '/docs/module-4-vision-language-action/examples/vla-inference-simulation', title: 'Example 4: VLA Inference in Simulation'}}
+>
+
+## Learning Objectives
+
+After completing this example, you will be able to:
+
+- Integrate perception feedback into LLM-based planning
+- Create conditional action sequences based on sensor data
+- Implement environment-dependent command processing
+- Design perception-action loops for adaptive behavior
+- Handle dynamic environment changes during execution
+
+## Introduction
+
+This example builds on the LLM task decomposition system by adding perception feedback. The system now uses sensor data to adapt its plans dynamically, creating more robust and flexible robot behavior that responds to the actual environment rather than just the commanded intent.
+
+## Perception-Integrated Planning Architecture
+
+<ConceptExplainer
+  concept="Perception-Integrated Planning"
+  description="Perception-integrated planning combines sensor data with high-level planning to create adaptive, context-aware robot behaviors that can respond to environmental changes during execution."
+  examples={[
+    "Replanning navigation when obstacles appear",
+    "Adjusting grasp approach based on object pose",
+    "Modifying cleaning strategy based on detected dirt levels",
+    "Changing path when doors are closed vs. open"
+  ]}
+  relatedConcepts={["Adaptive Planning", "Reactive Systems", "Sensor Integration", "Dynamic Replanning"]}
+>
+
+### Key Components
+
+1. **Perception System**: Provides real-time environmental information
+2. **Plan Generator**: Creates initial action sequences
+3. **Monitor**: Tracks execution and environmental changes
+4. **Replanner**: Updates plans based on new information
+5. **Executor**: Carries out actions with feedback
+
+</ConceptExplainer>
+
+<ArchitectureDiagram
+  variant="communication"
+  title="Perception-Integrated Planning Architecture"
+  description="Shows the feedback loop between perception, planning, and execution systems"
+  highlightElements={["perception", "planning", "monitoring", "execution", "feedback_loop"]}
+/>
+
+## Perception System Integration
+
+<CodeExample
+  language="python"
+  title="Perception Integration Node"
+  description="Node that gathers and processes sensor data for planning"
+  code={`import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image, PointCloud2, LaserScan
+from geometry_msgs.msg import PoseStamped, Point
+from visualization_msgs.msg import MarkerArray
+from std_msgs.msg import String, Float32
+import json
+import threading
+import numpy as np
+from typing import Dict, List, Optional
+
+class PerceptionIntegrationNode(Node):
+    def __init__(self):
+        super().__init__('perception_integration_node')
+
+        # Subscribe to various sensor feeds
+        self.image_sub = self.create_subscription(
+            Image, 'camera/image_raw', self.image_callback, 10
+        )
+        self.pointcloud_sub = self.create_subscription(
+            PointCloud2, 'camera/depth/points', self.pointcloud_callback, 10
+        )
+        self.laser_sub = self.create_subscription(
+            LaserScan, 'scan', self.laser_callback, 10
+        )
+        self.object_detection_sub = self.create_subscription(
+            MarkerArray, 'detected_objects', self.object_detection_callback, 10
+        )
+
+        # Publisher for processed environmental information
+        self.env_info_pub = self.create_publisher(String, 'environment_info', 10)
+
+        # Publisher for obstacle information
+        self.obstacle_pub = self.create_publisher(MarkerArray, 'obstacles', 10)
+
+        # Storage for current environmental state
+        self.environment_state = {
+            'objects': [],
+            'obstacles': [],
+            'free_space': [],
+            'navigation_goals': [],
+            'last_update': self.get_clock().now()
+        }
+
+        # Thread safety for environment state
+        self.state_lock = threading.RLock()
+
+        # Timer for periodic environment updates
+        self.update_timer = self.create_timer(0.5, self.publish_environment_info)
+
+        self.get_logger().info('Perception integration node initialized')
+
+    def image_callback(self, msg):
+        """Process camera image for visual perception"""
+        # Process image and extract relevant information
+        # This would typically involve object detection, scene analysis, etc.
+        pass
+
+    def pointcloud_callback(self, msg):
+        """Process point cloud for 3D environment understanding"""
+        # Process point cloud data to identify objects, surfaces, obstacles
+        with self.state_lock:
+            # Update environment state with 3D information
+            self.environment_state['last_update'] = self.get_clock().now()
+
+    def laser_callback(self, msg):
+        """Process laser scan for obstacle detection"""
+        ranges = np.array(msg.ranges)
+
+        # Filter out invalid readings
+        valid_ranges = ranges[(ranges > msg.range_min) & (ranges < msg.range_max)]
+
+        # Identify obstacles based on distance thresholds
+        obstacle_angles = []
+        obstacle_distances = []
+
+        for i, distance in enumerate(ranges):
+            if msg.range_min < distance < 0.8:  # Obstacle threshold
+                angle = msg.angle_min + i * msg.angle_increment
+                obstacle_angles.append(angle)
+                obstacle_distances.append(distance)
+
+        with self.state_lock:
+            # Convert polar coordinates to Cartesian for obstacle markers
+            obstacles = []
+            for angle, dist in zip(obstacle_angles, obstacle_distances):
+                x = dist * np.cos(angle)
+                y = dist * np.sin(angle)
+
+                obstacle = {
+                    'position': {'x': x, 'y': y, 'z': 0.0},
+                    'distance': dist,
+                    'angle': angle
+                }
+                obstacles.append(obstacle)
+
+            self.environment_state['obstacles'] = obstacles
+            self.environment_state['last_update'] = self.get_clock().now()
+
+        # Publish obstacle markers
+        self.publish_obstacle_markers(obstacles)
+
+    def object_detection_callback(self, msg):
+        """Process detected objects from computer vision pipeline"""
+        detected_objects = []
+
+        for marker in msg.markers:
+            obj = {
+                'id': marker.id,
+                'name': marker.ns,
+                'type': self.get_object_type(marker.id),
+                'position': {
+                    'x': marker.pose.position.x,
+                    'y': marker.pose.position.y,
+                    'z': marker.pose.position.z
+                },
+                'orientation': {
+                    'x': marker.pose.orientation.x,
+                    'y': marker.pose.orientation.y,
+                    'z': marker.pose.orientation.z,
+                    'w': marker.pose.orientation.w
+                },
+                'size': {
+                    'x': marker.scale.x,
+                    'y': marker.scale.y,
+                    'z': marker.scale.z
+                },
+                'confidence': marker.id  # Using ID as confidence in this example
+            }
+            detected_objects.append(obj)
+
+        with self.state_lock:
+            self.environment_state['objects'] = detected_objects
+            self.environment_state['last_update'] = self.get_clock().now()
+
+    def get_object_type(self, marker_id):
+        """Map marker ID to object type"""
+        # This would be populated based on your object detection system
+        object_types = {
+            0: 'unknown',
+            1: 'person',
+            2: 'cup',
+            3: 'box',
+            4: 'chair',
+            5: 'table',
+            6: 'door',
+            7: 'window'
+        }
+        return object_types.get(marker_id, 'unknown')
+
+    def publish_obstacle_markers(self, obstacles):
+        """Publish obstacle markers for visualization and planning"""
+        marker_array = MarkerArray()
+
+        for i, obstacle in enumerate(obstacles):
+            marker = Marker()
+            marker.header.frame_id = 'base_link'
+            marker.header.stamp = self.get_clock().now().to_msg()
+            marker.ns = 'obstacles'
+            marker.id = i
+            marker.type = Marker.SPHERE
+            marker.action = Marker.ADD
+
+            # Position
+            marker.pose.position.x = obstacle['position']['x']
+            marker.pose.position.y = obstacle['position']['y']
+            marker.pose.position.z = obstacle['position']['z']
+            marker.pose.orientation.w = 1.0
+
+            # Scale
+            marker.scale.x = 0.2  # 20cm diameter
+            marker.scale.y = 0.2
+            marker.scale.z = 0.2
+
+            # Color (red for obstacles)
+            marker.color.r = 1.0
+            marker.color.g = 0.0
+            marker.color.b = 0.0
+            marker.color.a = 0.8
+
+            marker_array.markers.append(marker)
+
+        self.obstacle_pub.publish(marker_array)
+
+    def publish_environment_info(self):
+        """Periodically publish consolidated environment information"""
+        with self.state_lock:
+            env_info = {
+                'timestamp': self.get_clock().now().nanoseconds,
+                'objects': self.environment_state['objects'],
+                'obstacles': self.environment_state['obstacles'],
+                'free_space': self.environment_state['free_space'],
+                'navigation_goals': self.environment_state['navigation_goals']
+            }
+
+        # Publish environment information
+        env_msg = String()
+        env_msg.data = json.dumps(env_info)
+        self.env_info_pub.publish(env_msg)
+
+    def get_environment_state(self) -> Dict:
+        """Get current environment state (thread-safe)"""
+        with self.state_lock:
+            return self.environment_state.copy()
+
+    def get_relevant_objects(self, object_types: List[str]) -> List[Dict]:
+        """Get objects of specific types from current environment"""
+        with self.state_lock:
+            relevant_objects = []
+            for obj in self.environment_state['objects']:
+                if obj['type'] in object_types:
+                    relevant_objects.append(obj)
+            return relevant_objects
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    perception_node = PerceptionIntegrationNode()
+
+    try:
+        rclpy.spin(perception_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        perception_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Conditional Action Planning
+
+<ConceptExplainer
+  concept="Conditional Action Sequences"
+  description="Conditional action sequences include decision points that allow the robot to adapt its behavior based on environmental feedback, creating more flexible and robust execution."
+  examples={[
+    "If object detected, grasp it; otherwise, search for object",
+    "If path is clear, navigate directly; if blocked, find alternative route",
+    "If battery low, return to charging station before continuing task"
+  ]}
+  relatedConcepts={["Conditional Logic", "Decision Making", "Adaptive Behavior", "Reactive Planning"]}
+>
+
+### Conditional Planning Patterns
+
+1. **If-Then Actions**: Execute alternative actions based on conditions
+2. **Loops**: Repeat actions until conditions are met
+3. **Branching**: Split execution into parallel branches
+4. **Monitoring**: Continuously check conditions during execution
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Conditional Planner Node"
+  description="Node that generates conditional action sequences based on environment"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from openai import OpenAI
+import json
+import re
+from typing import Dict, List, Any
+
+class ConditionalPlannerNode(Node):
+    def __init__(self):
+        super().__init__('conditional_planner_node')
+
+        # Initialize LLM client
+        try:
+            self.client = OpenAI()
+        except Exception as e:
+            self.get_logger().error(f'Failed to initialize OpenAI client: {e}')
+            return
+
+        # Subscribe to voice commands and environment info
+        self.command_sub = self.create_subscription(
+            String,
+            'voice_commands',
+            self.command_callback,
+            10
+        )
+        self.env_sub = self.create_subscription(
+            String,
+            'environment_info',
+            self.environment_callback,
+            10
+        )
+
+        # Publisher for conditional action sequences
+        self.action_seq_pub = self.create_publisher(String, 'conditional_action_sequences', 10)
+
+        # Store current environment state
+        self.current_environment = {}
+        self.env_lock = threading.RLock()
+
+        self.get_logger().info('Conditional Planner node initialized')
+
+    def command_callback(self, msg):
+        """Process command with environmental context"""
+        command = msg.data.strip()
+
+        if not command:
+            return
+
+        self.get_logger().info(f'Received command: {command}')
+
+        try:
+            # Get current environment context
+            with self.env_lock:
+                environment_context = self.current_environment.copy()
+
+            # Generate conditional action sequence with environmental awareness
+            action_sequence = self.generate_conditional_plan(command, environment_context)
+
+            if action_sequence:
+                # Publish the conditional action sequence
+                action_msg = String()
+                action_msg.data = json.dumps(action_sequence)
+                self.action_seq_pub.publish(action_msg)
+
+                self.get_logger().info(f'Generated conditional sequence with {len(action_sequence)} actions')
+
+        except Exception as e:
+            self.get_logger().error(f'Error generating conditional plan: {e}')
+
+    def environment_callback(self, msg):
+        """Update environment context"""
+        try:
+            env_data = json.loads(msg.data)
+            with self.env_lock:
+                self.current_environment = env_data
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f'Error parsing environment data: {e}')
+
+    def generate_conditional_plan(self, command: str, environment: Dict) -> List[Dict]:
+        """Generate conditional action sequence with environmental context"""
+        # Create a detailed prompt for conditional planning
+        environment_str = json.dumps(environment, indent=2)
+
+        prompt = f"""
+        You are a robot task planner with environmental awareness.
+        Generate a conditional action sequence for the following command,
+        taking into account the current environment and potential contingencies.
+
+        Environment Context:
+        {environment_str}
+
+        Command: "{command}"
+
+        Generate a JSON array of action objects with the following structure:
+        {{
+            "actions": [
+                {{
+                    "action_type": "navigation|manipulation|perception|conditional",
+                    "action_name": "action_name",
+                    "parameters": {{"param1": "value1"}},
+                    "description": "What this action does",
+                    "condition": "optional condition to check before executing",
+                    "if_true": [optional array of actions if condition is true],
+                    "if_false": [optional array of actions if condition is false],
+                    "success_criteria": "How to verify action completion"
+                }}
+            ]
+        }}
+
+        Include conditional actions where appropriate based on environmental factors:
+        - Check for object presence before attempting to grasp
+        - Verify path clearness before navigation
+        - Confirm goal achievement before proceeding
+
+        Response (JSON only):
+        """
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a robot task planner with environmental awareness. Output only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=800
+            )
+
+            content = response.choices[0].message.content
+
+            # Extract JSON from response
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                json_str = json_match.group()
+                result = json.loads(json_str)
+                return result.get('actions', [])
+
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f'Error parsing LLM response as JSON: {e}')
+        except Exception as e:
+            self.get_logger().error(f'Error calling LLM API: {e}')
+
+        return []
+
+    def create_conditional_template(self, condition: str, if_true_actions: List[Dict], if_false_actions: List[Dict] = None) -> Dict:
+        """Helper to create conditional action templates"""
+        conditional_action = {
+            "action_type": "conditional",
+            "action_name": "conditional_branch",
+            "parameters": {
+                "condition": condition,
+                "if_true": if_true_actions,
+                "if_false": if_false_actions or []
+            },
+            "description": f"Conditionally execute actions based on: {condition}",
+            "condition": condition
+        }
+        return conditional_action
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    planner_node = ConditionalPlannerNode()
+
+    try:
+        rclpy.spin(planner_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        planner_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Environment-Dependent Command Processing
+
+<CodeExample
+  language="python"
+  title="Environment-Aware Command Processor"
+  description="Processes commands considering environmental context and object availability"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from geometry_msgs.msg import Pose
+import json
+import math
+from typing import Dict, List, Tuple
+
+class EnvironmentAwareCommandProcessor(Node):
+    def __init__(self):
+        super().__init__('environment_aware_command_processor')
+
+        # Subscribe to voice commands and environment info
+        self.command_sub = self.create_subscription(
+            String,
+            'voice_commands',
+            self.command_callback,
+            10
+        )
+        self.env_sub = self.create_subscription(
+            String,
+            'environment_info',
+            self.environment_callback,
+            10
+        )
+
+        # Publisher for environment-adapted commands
+        self.adapted_command_pub = self.create_publisher(String, 'adapted_commands', 10)
+
+        # Store environment state
+        self.environment = {}
+        self.env_lock = threading.RLock()
+
+        self.get_logger().info('Environment-aware command processor initialized')
+
+    def command_callback(self, msg):
+        """Process command with environmental awareness"""
+        command = msg.data.strip()
+
+        if not command:
+            return
+
+        self.get_logger().info(f'Processing environment-dependent command: {command}')
+
+        try:
+            # Get current environment
+            with self.env_lock:
+                current_env = self.environment.copy()
+
+            # Adapt command based on environment
+            adapted_command = self.adapt_command_to_environment(command, current_env)
+
+            if adapted_command:
+                # Publish adapted command
+                adapted_msg = String()
+                adapted_msg.data = json.dumps(adapted_command)
+                self.adapted_command_pub.publish(adapted_msg)
+
+                self.get_logger().info(f'Adapted command: {adapted_command["original_command"]} -> {adapted_command["adapted_command"]}')
+
+        except Exception as e:
+            self.get_logger().error(f'Error adapting command to environment: {e}')
+
+    def environment_callback(self, msg):
+        """Update environment information"""
+        try:
+            env_data = json.loads(msg.data)
+            with self.env_lock:
+                self.environment = env_data
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f'Error parsing environment data: {e}')
+
+    def adapt_command_to_environment(self, command: str, environment: Dict) -> Dict:
+        """Adapt command based on environmental context"""
+        original_command = command.lower()
+
+        # Analyze command intent
+        command_analysis = self.analyze_command_intent(original_command)
+
+        # Get relevant environmental information
+        relevant_objects = self.get_relevant_environment_objects(environment, command_analysis)
+        obstacles = environment.get('obstacles', [])
+        free_spaces = environment.get('free_space', [])
+
+        # Adapt command based on environment
+        adapted_parts = []
+
+        if 'go to' in original_command or 'navigate to' in original_command:
+            # Adapt navigation commands based on obstacles
+            destination = self.extract_destination(original_command)
+            if destination:
+                adapted_path = self.adapt_navigation_path(destination, obstacles)
+                adapted_parts.append(adapted_path)
+
+        elif 'grasp' in original_command or 'pick up' in original_command or 'get' in original_command:
+            # Adapt grasping commands based on object availability
+            target_object = self.extract_target_object(original_command)
+            if target_object:
+                adapted_grasp = self.adapt_grasping_command(target_object, relevant_objects)
+                adapted_parts.append(adapted_grasp)
+
+        elif 'move' in original_command or 'push' in original_command:
+            # Adapt movement commands based on space availability
+            adapted_movement = self.adapt_movement_command(original_command, free_spaces)
+            adapted_parts.append(adapted_movement)
+
+        # Create adapted command structure
+        adapted_command = {
+            "original_command": command,
+            "adapted_command": self.construct_adapted_command(command, adapted_parts),
+            "environment_context": {
+                "relevant_objects": relevant_objects,
+                "obstacles": obstacles,
+                "free_spaces": free_spaces
+            },
+            "adaptations_made": adapted_parts
+        }
+
+        return adapted_command
+
+    def analyze_command_intent(self, command: str) -> Dict:
+        """Analyze the intent of the command"""
+        analysis = {
+            "is_navigation": any(word in command for word in ['go to', 'navigate to', 'move to', 'walk to', 'drive to']),
+            "is_manipulation": any(word in command for word in ['grasp', 'pick up', 'get', 'take', 'catch', 'hold', 'grab']),
+            "is_perception": any(word in command for word in ['find', 'look for', 'detect', 'see', 'locate']),
+            "is_navigation_related": any(word in command for word in ['move', 'go', 'travel', 'navigate']),
+            "is_manipulation_related": any(word in command for word in ['grasp', 'manipulate', 'handle', 'touch', 'interact'])
+        }
+        return analysis
+
+    def get_relevant_environment_objects(self, environment: Dict, command_analysis: Dict) -> List[Dict]:
+        """Get objects relevant to the command intent"""
+        objects = environment.get('objects', [])
+        relevant_objects = []
+
+        if command_analysis.get('is_manipulation') or command_analysis.get('is_manipulation_related'):
+            # Look for graspable objects
+            for obj in objects:
+                if obj['type'] in ['cup', 'box', 'bottle', 'toy', 'book', 'phone']:
+                    relevant_objects.append(obj)
+
+        elif command_analysis.get('is_perception'):
+            # Look for all visible objects
+            relevant_objects = objects
+
+        elif command_analysis.get('is_navigation'):
+            # Look for navigation landmarks
+            for obj in objects:
+                if obj['type'] in ['table', 'chair', 'door', 'window', 'kitchen', 'bedroom', 'office']:
+                    relevant_objects.append(obj)
+
+        return relevant_objects
+
+    def extract_destination(self, command: str) -> str:
+        """Extract destination from navigation command"""
+        # Simple extraction - in practice, use NLU
+        destination_keywords = ['kitchen', 'bedroom', 'office', 'living room', 'bathroom', 'dining room']
+        for keyword in destination_keywords:
+            if keyword in command:
+                return keyword
+        return None
+
+    def extract_target_object(self, command: str) -> str:
+        """Extract target object from manipulation command"""
+        # Simple extraction - in practice, use NLU
+        object_keywords = ['cup', 'box', 'bottle', 'ball', 'book', 'phone', 'glass', 'plate']
+        for keyword in object_keywords:
+            if keyword in command:
+                return keyword
+        return None
+
+    def adapt_navigation_path(self, destination: str, obstacles: List[Dict]) -> Dict:
+        """Adapt navigation path based on obstacles"""
+        adaptation = {
+            "type": "navigation_adaptation",
+            "original_destination": destination,
+            "obstacle_count": len(obstacles),
+            "path_modification_needed": len(obstacles) > 0
+        }
+
+        if len(obstacles) > 0:
+            adaptation["suggested_detour"] = self.calculate_detour(obstacles)
+            adaptation["warning"] = f"Path to {destination} has {len(obstacles)} obstacles, suggesting detour"
+
+        return adaptation
+
+    def calculate_detour(self, obstacles: List[Dict]) -> Dict:
+        """Calculate detour around obstacles"""
+        # Simplified detour calculation
+        if not obstacles:
+            return {"type": "direct_path", "route": "straight_line"}
+
+        # Find the obstacle closest to the intended path
+        closest_obstacle = min(obstacles, key=lambda o: o['distance']) if obstacles else None
+
+        if closest_obstacle:
+            detour_direction = "left" if closest_obstacle['position']['y'] < 0 else "right"
+            return {
+                "type": "avoidance_detour",
+                "direction": detour_direction,
+                "distance": closest_obstacle['distance']
+            }
+
+        return {"type": "unknown_detour", "route": "calculate_path"}
+
+    def adapt_grasping_command(self, target_object: str, relevant_objects: List[Dict]) -> Dict:
+        """Adapt grasping command based on object availability"""
+        adaptation = {
+            "type": "grasping_adaptation",
+            "target_object": target_object,
+            "objects_found": len(relevant_objects)
+        }
+
+        # Check if target object is available
+        available_objects = [obj for obj in relevant_objects if obj['type'] == target_object]
+
+        if len(available_objects) == 0:
+            adaptation["status"] = "object_not_found"
+            adaptation["suggestion"] = f"Object '{target_object}' not detected, suggesting search action"
+            adaptation["action"] = "search_for_object"
+        elif len(available_objects) == 1:
+            adaptation["status"] = "object_found_single"
+            adaptation["object_details"] = available_objects[0]
+            adaptation["action"] = "grasp_object"
+        else:
+            adaptation["status"] = "multiple_objects_found"
+            adaptation["object_count"] = len(available_objects)
+            adaptation["suggestion"] = f"Multiple {target_object}s found, requesting clarification"
+            adaptation["action"] = "request_object_selection"
+
+        return adaptation
+
+    def adapt_movement_command(self, command: str, free_spaces: List[Dict]) -> Dict:
+        """Adapt movement command based on available space"""
+        adaptation = {
+            "type": "movement_adaptation",
+            "original_command": command,
+            "free_space_count": len(free_spaces)
+        }
+
+        if len(free_spaces) == 0:
+            adaptation["status"] = "no_space_available"
+            adaptation["suggestion"] = "No clear space detected, suggesting alternative action"
+            adaptation["action"] = "request_clear_path"
+        else:
+            adaptation["status"] = "space_available"
+            adaptation["recommended_space"] = self.select_best_free_space(free_spaces)
+            adaptation["action"] = "execute_movement"
+
+        return adaptation
+
+    def select_best_free_space(self, free_spaces: List[Dict]) -> Dict:
+        """Select the best free space for movement"""
+        if not free_spaces:
+            return {"selection": "none", "criteria": "largest_available"}
+
+        # For simplicity, return the first available space
+        # In practice, evaluate based on size, proximity, etc.
+        return free_spaces[0]
+
+    def construct_adapted_command(self, original_command: str, adaptations: List[Dict]) -> str:
+        """Construct adapted command string from adaptations"""
+        if not adaptations:
+            return original_command
+
+        # Apply adaptations to create a more specific command
+        adapted = original_command
+
+        for adaptation in adaptations:
+            if adaptation.get('suggestion'):
+                adapted += f". Note: {adaptation['suggestion']}."
+
+        return adapted
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    processor_node = EnvironmentAwareCommandProcessor()
+
+    try:
+        rclpy.spin(processor_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        processor_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Perception-Action Loop Implementation
+
+<ConceptExplainer
+  concept="Perception-Action Loop"
+  description="The perception-action loop is a continuous cycle where the robot perceives its environment, decides on actions, executes them, and then perceives again to assess the results and plan next steps."
+  examples={[
+    "Navigate → Perceive obstacle → Replan → Navigate",
+    "Look for object → Detect → Grasp → Confirm grasp",
+    "Enter room → Scan → Identify people → Greet appropriately"
+  ]}
+  relatedConcepts={["Closed-Loop Control", "Reactive Systems", "Adaptive Behavior", "Sensorimotor Coordination"]}
+>
+
+### Loop Components
+
+1. **Perception**: Sense the current state of the world
+2. **Planning**: Decide what to do based on goal and current state
+3. **Action**: Execute the planned action
+4. **Monitoring**: Observe the results and prepare for next iteration
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Perception-Action Loop Controller"
+  description="Controller that implements the perception-action loop for adaptive behavior"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import Image, LaserScan
+import json
+import time
+from enum import Enum
+from typing import Dict, Any, Optional
+
+class LoopState(Enum):
+    PERCEIVING = "perceiving"
+    PLANNING = "planning"
+    ACTING = "acting"
+    MONITORING = "monitoring"
+    ADAPTING = "adapting"
+
+class PerceptionActionLoopController(Node):
+    def __init__(self):
+        super().__init__('perception_action_loop_controller')
+
+        # Subscribe to various inputs
+        self.goal_sub = self.create_subscription(
+            String,
+            'high_level_goals',
+            self.goal_callback,
+            10
+        )
+        self.environment_sub = self.create_subscription(
+            String,
+            'environment_info',
+            self.environment_callback,
+            10
+        )
+        self.scan_sub = self.create_subscription(
+            LaserScan,
+            'scan',
+            self.scan_callback,
+            10
+        )
+
+        # Publishers
+        self.action_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.status_pub = self.create_publisher(String, 'loop_status', 10)
+
+        # Internal state
+        self.current_goal = None
+        self.current_environment = {}
+        self.loop_state = LoopState.PERCEIVING
+        self.last_action_time = time.time()
+        self.action_duration = 0.1  # seconds between actions
+
+        # Timer for the perception-action loop
+        self.loop_timer = self.create_timer(0.1, self.perception_action_loop)
+
+        self.get_logger().info('Perception-action loop controller initialized')
+
+    def goal_callback(self, msg):
+        """Receive high-level goals to work towards"""
+        try:
+            goal_data = json.loads(msg.data)
+            self.current_goal = goal_data
+            self.get_logger().info(f'Received new goal: {goal_data.get("goal", "unknown")}')
+        except json.JSONDecodeError:
+            self.current_goal = {"goal": msg.data, "type": "simple_command"}
+
+    def environment_callback(self, msg):
+        """Update environment information"""
+        try:
+            env_data = json.loads(msg.data)
+            self.current_environment = env_data
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f'Error parsing environment data: {e}')
+
+    def scan_callback(self, msg):
+        """Process laser scan for immediate obstacle detection"""
+        # Update immediate environment with scan data
+        ranges = list(msg.ranges)
+        self.current_environment['immediate_scan'] = {
+            'ranges': ranges,
+            'min_distance': min(ranges) if ranges else float('inf'),
+            'timestamp': time.time()
+        }
+
+    def perception_action_loop(self):
+        """Main perception-action loop"""
+        current_time = time.time()
+
+        # Rate limiting to avoid overwhelming the system
+        if current_time - self.last_action_time < self.action_duration:
+            return
+
+        self.last_action_time = current_time
+
+        # Update loop status
+        status_msg = String()
+        status_msg.data = f'State: {self.loop_state.value}, Goal: {self.current_goal.get("goal", "none") if self.current_goal else "none"}'
+        self.status_pub.publish(status_msg)
+
+        # Execute the current state of the loop
+        if self.loop_state == LoopState.PERCEIVING:
+            self.perceive_environment()
+        elif self.loop_state == LoopState.PLANNING:
+            self.plan_action()
+        elif self.loop_state == LoopState.ACTING:
+            self.execute_action()
+        elif self.loop_state == LoopState.MONITORING:
+            self.monitor_results()
+        elif self.loop_state == LoopState.ADAPTING:
+            self.adapt_and_continue()
+
+    def perceive_environment(self):
+        """Perceive current environment state"""
+        if not self.current_environment:
+            self.get_logger().info('No environment data yet, continuing to perceive')
+            return
+
+        self.get_logger().debug('Perceiving environment...')
+
+        # Analyze environment for relevant information
+        obstacles_nearby = self.check_for_immediate_obstacles()
+        target_visible = self.check_for_target_object()
+
+        # Update environment understanding
+        self.current_environment['analysis'] = {
+            'obstacles_nearby': obstacles_nearby,
+            'target_visible': target_visible,
+            'timestamp': time.time()
+        }
+
+        # Transition to planning state
+        self.loop_state = LoopState.PLANNING
+
+    def check_for_immediate_obstacles(self) -> bool:
+        """Check for immediate obstacles using laser scan"""
+        scan_data = self.current_environment.get('immediate_scan', {})
+        min_distance = scan_data.get('min_distance', float('inf'))
+
+        # Consider obstacle if closer than 0.5m
+        return min_distance < 0.5
+
+    def check_for_target_object(self) -> bool:
+        """Check if target object is visible"""
+        if not self.current_goal:
+            return False
+
+        target_type = self.current_goal.get('target_object')
+        if not target_type:
+            return False
+
+        objects = self.current_environment.get('objects', [])
+        for obj in objects:
+            if obj.get('type') == target_type:
+                return True
+
+        return False
+
+    def plan_action(self):
+        """Plan next action based on goal and environment"""
+        if not self.current_goal:
+            self.get_logger().info('No goal set, returning to perception')
+            self.loop_state = LoopState.PERCEIVING
+            return
+
+        self.get_logger().debug('Planning action...')
+
+        # Create action plan based on goal and environment
+        action_plan = self.create_action_plan()
+
+        if action_plan:
+            self.stored_action_plan = action_plan
+            self.loop_state = LoopState.ACTING
+        else:
+            self.get_logger().warn('Could not create action plan, returning to perception')
+            self.loop_state = LoopState.PERCEIVING
+
+    def create_action_plan(self) -> Optional[Dict]:
+        """Create an action plan based on goal and environment"""
+        goal = self.current_goal
+        env_analysis = self.current_environment.get('analysis', {})
+
+        # Example planning logic
+        if goal.get('goal') == 'navigate_to_kitchen':
+            if env_analysis.get('obstacles_nearby'):
+                return {
+                    'action_type': 'navigation',
+                    'action_name': 'avoid_obstacle_and_continue',
+                    'parameters': {'avoid_distance': 0.6, 'resume_path': 'to_kitchen'}
+                }
+            else:
+                return {
+                    'action_type': 'navigation',
+                    'action_name': 'move_forward_towards_kitchen',
+                    'parameters': {'speed': 0.3, 'duration': 2.0}
+                }
+
+        elif goal.get('goal') == 'find_red_ball':
+            if env_analysis.get('target_visible'):
+                return {
+                    'action_type': 'manipulation',
+                    'action_name': 'approach_and_grasp_ball',
+                    'parameters': {'approach_distance': 0.3}
+                }
+            else:
+                return {
+                    'action_type': 'perception',
+                    'action_name': 'search_for_ball',
+                    'parameters': {'rotation_speed': 0.2, 'search_radius': 2.0}
+                }
+
+        return None
+
+    def execute_action(self):
+        """Execute the planned action"""
+        if not hasattr(self, 'stored_action_plan'):
+            self.get_logger().warn('No action plan to execute, returning to perception')
+            self.loop_state = LoopState.PERCEIVING
+            return
+
+        action = self.stored_action_plan
+        self.get_logger().debug(f'Executing action: {action["action_name"]}')
+
+        # Execute based on action type
+        if action['action_type'] == 'navigation':
+            self.execute_navigation_action(action)
+        elif action['action_type'] == 'manipulation':
+            self.execute_manipulation_action(action)
+        elif action['action_type'] == 'perception':
+            self.execute_perception_action(action)
+
+        # After execution, move to monitoring state
+        self.loop_state = LoopState.MONITORING
+
+    def execute_navigation_action(self, action):
+        """Execute navigation action"""
+        twist = Twist()
+
+        if action['action_name'] == 'move_forward_towards_kitchen':
+            twist.linear.x = action['parameters'].get('speed', 0.3)
+            twist.angular.z = 0.0
+        elif action['action_name'] == 'avoid_obstacle_and_continue':
+            # Simple obstacle avoidance: turn slightly
+            twist.linear.x = 0.2
+            twist.angular.z = 0.3
+        elif action['action_name'] == 'search_for_ball':
+            # Rotate in place to search
+            twist.linear.x = 0.0
+            twist.angular.z = action['parameters'].get('rotation_speed', 0.2)
+
+        self.action_pub.publish(twist)
+
+    def execute_manipulation_action(self, action):
+        """Execute manipulation action (simulated)"""
+        self.get_logger().info(f'Executing manipulation: {action["action_name"]}')
+        # In a real system, this would control manipulator joints
+
+    def execute_perception_action(self, action):
+        """Execute perception action (simulated)"""
+        self.get_logger().info(f'Executing perception: {action["action_name"]}')
+        # In a real system, this might trigger camera movements or sensor activation
+
+    def monitor_results(self):
+        """Monitor the results of the executed action"""
+        self.get_logger().debug('Monitoring action results...')
+
+        # In a real system, this would check sensors for evidence of action success
+        # For simulation, we'll just wait and then decide whether to adapt or continue
+
+        # Check if we need to adapt based on environment changes
+        obstacles_now = self.check_for_immediate_obstacles()
+        target_now = self.check_for_target_object()
+
+        if obstacles_now or not target_now:
+            self.loop_state = LoopState.ADAPTING
+        else:
+            # Action was successful, continue with goal
+            self.loop_state = LoopState.PERCEIVING  # Start new perception cycle
+
+    def adapt_and_continue(self):
+        """Adapt plan based on monitoring results"""
+        self.get_logger().debug('Adapting plan based on monitoring results...')
+
+        # Adapt the plan based on new information
+        if self.check_for_immediate_obstacles():
+            self.get_logger().info('Obstacle detected, replanning navigation')
+            # Store the need to handle obstacle and return to planning
+            self.pending_adaptation = 'obstacle_avoidance'
+
+        # Return to planning with adapted information
+        self.loop_state = LoopState.PLANNING
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    loop_controller = PerceptionActionLoopController()
+
+    try:
+        rclpy.spin(loop_controller)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        loop_controller.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Testing Environment-Dependent Commands
+
+### Running the Perception-Integrated Planning System
+
+1. **Launch Sensor Simulation**:
+   ```bash
+   # Start perception nodes (cameras, lidar, object detection)
+   ros2 launch perception_stack perception_sim.launch.py
+   ```
+
+2. **Launch Planning System**:
+   ```bash
+   # Start the perception-integrated planning nodes
+   ros2 run perception_integration perception_integration_node
+   ros2 run perception_integration conditional_planner_node
+   ros2 run perception_integration environment_aware_processor
+   ros2 run perception_integration perception_action_loop_controller
+   ```
+
+3. **Test Environment-Dependent Commands**:
+   ```bash
+   # Send commands that depend on environment
+   ros2 topic pub /voice_commands std_msgs/String "data: 'Go to the kitchen'"
+   ros2 topic pub /voice_commands std_msgs/String "data: 'Find the red ball'"
+   ros2 topic pub /voice_commands std_msgs/String "data: 'Grasp the cup on the table'"
+   ```
+
+### Expected Behavior
+
+- System responds differently based on environment
+- Obstacles are detected and avoided
+- Objects are located before manipulation attempts
+- Plans adapt when conditions change
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+- **Delayed Responses**: Check sensor data rate and processing efficiency
+- **Inconsistent Adaptations**: Verify environment state updates are frequent
+- **Failure to Detect Changes**: Ensure proper sensor coverage and calibration
+- **Over-adaptation**: Implement stability checks to avoid excessive replanning
+
+## Summary
+
+This example demonstrated:
+
+1. Integration of perception feedback into planning systems
+2. Creation of conditional action sequences based on sensor data
+3. Implementation of environment-dependent command processing
+4. Design of perception-action loops for adaptive behavior
+5. Handling of dynamic environment changes during execution
+
+The system now exhibits more robust and flexible behavior by incorporating real-time environmental information into its planning and execution processes.
+
+</ChapterLayout>

@@ -1,0 +1,952 @@
+---
+sidebar_label: "Chapter 2: Cognitive Planning with LLMs – Translating Language to Action Sequences"
+sidebar_position: 3
+title: "Chapter 2: Cognitive Planning with LLMs – Translating Language to Action Sequences"
+description: "Using LLMs (e.g., GPT-4o, Llama 3, or open-source models) for high-level task planning; prompting strategies to decompose natural language commands (e.g., \"Clean the room\") into sequences of atomic ROS 2 actions/goals; integrating perception feedback; ROS 2 packages and examples for LLM orchestration"
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+
+<ChapterLayout
+  title="Chapter 2: Cognitive Planning with LLMs – Translating Language to Action Sequences"
+  description="Using LLMs (e.g., GPT-4o, Llama 3, or open-source models) for high-level task planning; prompting strategies to decompose natural language commands (e.g., \"Clean the room\") into sequences of atomic ROS 2 actions/goals; integrating perception feedback; ROS 2 packages and examples for LLM orchestration"
+  previous={{path: '/docs/module-4-vision-language-action/voice-to-action', title: 'Voice-to-Action Processing'}}
+  next={{path: '/docs/module-4-vision-language-action/end-to-end-vla-control', title: 'End-to-End VLA Control'}}
+>
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Integrate Large Language Models (LLMs) with ROS 2 for high-level task planning
+- Develop effective prompting strategies to decompose complex natural language commands into sequences of atomic ROS 2 actions/goals
+- Integrate perception feedback into planning loops for adaptive behavior
+- Implement ROS 2 packages and examples for LLM orchestration
+- Handle ambiguous or complex commands with appropriate fallback strategies
+- Optimize LLM usage for robotics applications considering latency and cost constraints
+
+## Introduction to LLM-Based Cognitive Planning
+
+<ConceptExplainer
+  concept="LLM-Based Cognitive Planning"
+  analogy="LLM-based cognitive planning is like having a smart assistant that can take high-level human instructions and break them down into specific, executable steps for a robot, much like how a project manager breaks down a complex project into actionable tasks."
+  description="LLM-based cognitive planning uses Large Language Models to interpret natural language commands and decompose them into sequences of atomic actions that can be executed by robotic systems. This approach enables robots to understand and execute complex, high-level instructions expressed in natural language."
+  examples={[
+    "Converting 'Clean the room' into a sequence of navigation, object detection, grasping, and disposal actions",
+    "Interpreting 'Set the table for dinner' into specific placement of plates, utensils, and glasses",
+    "Breaking down 'Go to the kitchen and bring me a glass of water' into navigation and manipulation subtasks"
+  ]}
+  relatedConcepts={["Natural Language Understanding", "Task Decomposition", "Action Planning", "ROS 2 Action Servers"]}
+>
+
+### Key Components of LLM-Based Planning
+
+1. **Language Understanding**: Interpreting the natural language command
+2. **Task Decomposition**: Breaking down complex tasks into atomic actions
+3. **Action Sequencing**: Ordering actions logically for successful execution
+4. **Context Awareness**: Using environmental and robot state information
+5. **Feedback Integration**: Adapting plans based on execution results
+
+</ConceptExplainer>
+
+<ArchitectureDiagram
+  variant="components"
+  title="LLM-Based Planning Architecture"
+  description="Shows the integration of LLM with ROS 2 for cognitive planning, including command input, LLM processing, action decomposition, and execution"
+  highlightElements={["llm_interface", "task_decomposer", "action_sequencer", "ros_orchestrator"]}
+/>
+
+## LLM Integration for Task Planning
+
+### OpenAI GPT-4o Integration
+
+<ConceptExplainer
+  concept="GPT-4o for Robotics Planning"
+  description="GPT-4o provides state-of-the-art reasoning capabilities that can be leveraged for complex task decomposition and planning in robotics applications. Its multimodal capabilities make it suitable for tasks that require understanding both language and visual context."
+  examples={[
+    "Complex multi-step task planning",
+    "Natural language command interpretation",
+    "Context-aware action generation",
+    "Adaptive planning based on feedback"
+  ]}
+  relatedConcepts={["Multimodal AI", "Reasoning", "API Integration", "Prompt Engineering"]}
+>
+
+#### Implementation Approach
+
+```python
+import openai
+import json
+
+def decompose_command_with_gpt4o(command, context=""):
+    """
+    Use GPT-4o to decompose a natural language command into action sequence
+    """
+    prompt = f"""
+    You are a robot task planner. Decompose the following natural language command
+    into a sequence of specific robot actions that can be executed in ROS 2.
+
+    Current context: {context}
+    Command: "{command}"
+
+    Provide the response as a JSON array of action objects with the following structure:
+    {{
+        "actions": [
+            {{
+                "action_type": "navigation" | "manipulation" | "perception",
+                "action_name": "move_to_location" | "grasp_object" | "detect_object",
+                "parameters": {{"location": "kitchen", "object": "cup", ...}},
+                "description": "Human-readable description of the action"
+            }}
+        ]
+    }}
+
+    Be specific about locations, objects, and parameters needed for execution.
+    """
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a robot task planner. Output only valid JSON."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3,
+        max_tokens=500
+    )
+
+    try:
+        result = json.loads(response.choices[0].message.content)
+        return result.get('actions', [])
+    except json.JSONDecodeError:
+        return []
+```
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="GPT-4o Integration with ROS 2"
+  description="Implementation of GPT-4o integration with ROS 2 for task decomposition"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from geometry_msgs.msg import PoseStamped
+from action_msgs.msg import GoalStatus
+import openai
+import json
+
+class GPT4oTaskPlannerNode(Node):
+    def __init__(self):
+        super().__init__('gpt4o_task_planner_node')
+
+        # Initialize OpenAI client
+        # Ensure OPENAI_API_KEY is set in environment
+        openai.api_key = self.get_parameter_or('openai_api_key', '')
+
+        # Subscribe to voice commands
+        self.command_sub = self.create_subscription(
+            String,
+            'voice_commands',
+            self.command_callback,
+            10
+        )
+
+        # Publisher for action sequences
+        self.action_seq_pub = self.create_publisher(
+            String,  # In practice, use a custom message type
+            'action_sequences',
+            10
+        )
+
+        self.get_logger().info('GPT-4o Task Planner node initialized')
+
+    def command_callback(self, msg):
+        command = msg.data
+        self.get_logger().info(f'Received command: {command}')
+
+        try:
+            # Decompose command using GPT-4o
+            action_sequence = self.decompose_command(command)
+
+            if action_sequence:
+                # Publish the action sequence
+                action_msg = String()
+                action_msg.data = json.dumps(action_sequence)
+                self.action_seq_pub.publish(action_msg)
+
+                self.get_logger().info(f'Published action sequence: {action_sequence}')
+
+        except Exception as e:
+            self.get_logger().error(f'Error decomposing command: {e}')
+
+    def decompose_command(self, command):
+        """
+        Use GPT-4o to decompose a natural language command into action sequence
+        """
+        prompt = f"""
+        You are a robot task planner. Decompose the following natural language command
+        into a sequence of specific robot actions that can be executed in ROS 2.
+
+        Command: "{command}"
+
+        Provide the response as a JSON array of action objects with the following structure:
+        {{
+            "actions": [
+                {{
+                    "action_type": "navigation" | "manipulation" | "perception",
+                    "action_name": "move_to_location" | "grasp_object" | "detect_object",
+                    "parameters": {{"location": "kitchen", "object": "cup", ...}},
+                    "description": "Human-readable description of the action"
+                }}
+            ]
+        }}
+
+        Be specific about locations, objects, and parameters needed for execution.
+        """
+
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a robot task planner. Output only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+
+        try:
+            result = json.loads(response.choices[0].message.content)
+            return result.get('actions', [])
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f'Error parsing GPT-4o response as JSON: {e}')
+            return []`}
+/>
+
+### Open-Source Alternative: Llama 3 Integration
+
+<CodeExample
+  language="python"
+  title="Llama 3 Integration with Local Inference"
+  description="Implementation of Llama 3 for task decomposition using local inference"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+import json
+
+class Llama3TaskPlannerNode(Node):
+    def __init__(self):
+        super().__init__('llama3_task_planner_node')
+
+        # Load Llama 3 model (requires downloading first)
+        model_name = "meta-llama/Meta-Llama-3-8B-Instruct"  # Or use a local path
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=torch.float16,
+            device_map="auto"  # Automatically use available GPU if possible
+        )
+
+        # Subscribe to voice commands
+        self.command_sub = self.create_subscription(
+            String,
+            'voice_commands',
+            self.command_callback,
+            10
+        )
+
+        # Publisher for action sequences
+        self.action_seq_pub = self.create_publisher(
+            String,
+            'action_sequences',
+            10
+        )
+
+        self.get_logger().info('Llama 3 Task Planner node initialized')
+
+    def command_callback(self, msg):
+        command = msg.data
+        self.get_logger().info(f'Received command: {command}')
+
+        try:
+            # Decompose command using local Llama 3
+            action_sequence = self.decompose_command(command)
+
+            if action_sequence:
+                # Publish the action sequence
+                action_msg = String()
+                action_msg.data = json.dumps(action_sequence)
+                self.action_seq_pub.publish(action_msg)
+
+                self.get_logger().info(f'Published action sequence: {action_sequence}')
+
+        except Exception as e:
+            self.get_logger().error(f'Error decomposing command: {e}')
+
+    def decompose_command(self, command):
+        """
+        Use local Llama 3 to decompose a natural language command into action sequence
+        """
+        # Format the prompt for Llama 3's instruction format
+        prompt = f"""
+        <|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+        You are a robot task planner. Decompose the following natural language command
+        into a sequence of specific robot actions that can be executed in ROS 2.
+
+        <|end_header_id|><|start_header_id|>user<|end_header_id|>
+
+        Command: "{command}"
+
+        Provide the response as a JSON array of action objects with the following structure:
+        {{
+            "actions": [
+                {{
+                    "action_type": "navigation" | "manipulation" | "perception",
+                    "action_name": "move_to_location" | "grasp_object" | "detect_object",
+                    "parameters": {{"location": "kitchen", "object": "cup", ...}},
+                    "description": "Human-readable description of the action"
+                }}
+            ]
+        }}
+
+        Be specific about locations, objects, and parameters needed for execution.
+        Only respond with the JSON, no other text.
+
+        <|end_header_id|><|start_header_id|>assistant<|end_header_id|>
+        """
+
+        # Tokenize the input
+        inputs = self.tokenizer(prompt, return_tensors="pt")
+
+        # Move inputs to the same device as the model
+        inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
+
+        # Generate response
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=500,
+                temperature=0.3,
+                do_sample=True,
+                pad_token_id=self.tokenizer.eos_token_id
+            )
+
+        # Decode the response
+        response_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+        # Extract the assistant's response part
+        assistant_start = response_text.find("<|start_header_id|>assistant<|end_header_id|>")
+        if assistant_start != -1:
+            response_content = response_text[assistant_start:]
+            # Find JSON within the response
+            json_match = re.search(r'\{.*\}', response_content, re.DOTALL)
+            if json_match:
+                try:
+                    result = json.loads(json_match.group())
+                    return result.get('actions', [])
+                except json.JSONDecodeError:
+                    self.get_logger().error('Could not parse LLM response as JSON')
+
+        return []`}
+/>
+
+## Prompting Strategies for Task Decomposition
+
+### Structured Prompting Techniques
+
+<ConceptExplainer
+  concept="Structured Prompting for Task Decomposition"
+  description="Structured prompting involves providing clear, consistent formats to LLMs to ensure reliable and predictable task decomposition outputs for robotics applications."
+  examples={[
+    "Providing action templates and expected output formats",
+    "Including examples of successful task decompositions",
+    "Specifying constraints and environmental context"
+  ]}
+  relatedConcepts={["Prompt Engineering", "Structured Output", "Consistency", "Reliability"]}
+>
+
+### Effective Prompting Strategies
+
+1. **Provide Clear Instructions**: Specify exactly what format is expected
+2. **Include Examples**: Show input-output pairs for the model to follow
+3. **Define Constraints**: Specify environmental or physical constraints
+4. **Use Delimiters**: Clearly separate different parts of the prompt
+5. **Validate Output**: Check that the output matches expected format
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Structured Prompting for Task Decomposition"
+  description="Implementation of structured prompting techniques for reliable task decomposition"
+  code={`class TaskDecompositionPrompter:
+    def __init__(self):
+        # Define action templates for the LLM to follow
+        self.action_templates = [
+            {
+                "action_type": "navigation",
+                "action_name": "move_to_location",
+                "parameters": {"target_location": "kitchen"},
+                "description": "Move robot to specified location"
+            },
+            {
+                "action_type": "manipulation",
+                "action_name": "grasp_object",
+                "parameters": {"object_type": "cup", "location": "table"},
+                "description": "Grasp specified object from location"
+            },
+            {
+                "action_type": "perception",
+                "action_name": "detect_object",
+                "parameters": {"object_type": "ball", "search_area": "room"},
+                "description": "Detect specified object in search area"
+            }
+        ]
+
+    def create_structured_prompt(self, command, environment_context=None):
+        """
+        Create a structured prompt for task decomposition
+        """
+        # Format the environment context if provided
+        context_str = ""
+        if environment_context:
+            context_str = f"\\nEnvironment context: {environment_context}\\n"
+
+        prompt = f"""
+        Task: Decompose the following natural language command into specific robot actions.
+
+        {context_str}
+        Command: "{command}"
+
+        Action Templates (follow these formats):
+        {json.dumps(self.action_templates, indent=2)}
+
+        Instructions:
+        1. Decompose the command into 3-8 specific actions
+        2. Use only the action types and names from the templates
+        3. Provide specific parameters for each action
+        4. Order actions logically for successful execution
+        5. Include error handling considerations where appropriate
+
+        Output Format:
+        {{
+            "actions": [
+                {{
+                    "action_type": "navigation|manipulation|perception",
+                    "action_name": "specific_action_name",
+                    "parameters": {{"param1": "value1", "param2": "value2"}},
+                    "description": "Human-readable description",
+                    "success_criteria": "How to verify action completion"
+                }}
+            ]
+        }}
+
+        Response (JSON only):
+        """
+        return prompt
+
+    def validate_action_sequence(self, action_sequence):
+        """
+        Validate that the action sequence follows expected format and constraints
+        """
+        if not isinstance(action_sequence, list):
+            return False, "Action sequence must be a list"
+
+        for i, action in enumerate(action_sequence):
+            required_fields = ["action_type", "action_name", "parameters", "description"]
+            for field in required_fields:
+                if field not in action:
+                    return False, f"Action {i} missing required field: {field}"
+
+            # Validate action type
+            valid_types = ["navigation", "manipulation", "perception"]
+            if action["action_type"] not in valid_types:
+                return False, f"Action {i} has invalid action_type: {action['action_type']}"
+
+        return True, "Valid action sequence"
+`}
+/>
+
+## Perception Integration in Planning
+
+### Feedback-Driven Adaptive Planning
+
+<ConceptExplainer
+  concept="Perception-Integrated Planning"
+  description="Perception-integrated planning involves using sensor data and environmental feedback to adapt and modify planned action sequences during execution, enabling more robust and flexible robot behavior."
+  examples={[
+    "Replanning if an expected object is not found",
+    "Adjusting navigation based on dynamic obstacles",
+    "Modifying manipulation plans based on object properties"
+  ]}
+  relatedConcepts={["Adaptive Planning", "Reactive Systems", "Sensor Fusion", "Dynamic Replanning"]}
+>
+
+### Integration Approaches
+
+1. **Pre-execution Validation**: Check environment before executing action sequence
+2. **In-execution Monitoring**: Monitor execution and adapt as needed
+3. **Post-execution Evaluation**: Assess success and learn for future planning
+4. **Conditional Actions**: Include perception checks within action sequences
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Perception-Integrated Planning Node"
+  description="ROS 2 node that integrates perception feedback into LLM-based planning"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from sensor_msgs.msg import Image
+from geometry_msgs.msg import PoseStamped
+from visualization_msgs.msg import MarkerArray
+import json
+import threading
+
+class PerceptionIntegratedPlanningNode(Node):
+    def __init__(self):
+        super().__init__('perception_integrated_planning')
+
+        # LLM client initialization
+        self.client = OpenAI()  # Or your preferred LLM client
+
+        # Subscribe to various inputs
+        self.command_sub = self.create_subscription(
+            String, 'voice_commands', self.command_callback, 10
+        )
+        self.object_detection_sub = self.create_subscription(
+            MarkerArray, 'detected_objects', self.object_detection_callback, 10
+        )
+        self.map_sub = self.create_subscription(
+            String, 'environment_map', self.map_callback, 10
+        )
+
+        # Publishers
+        self.action_seq_pub = self.create_publisher(String, 'action_sequences', 10)
+        self.perception_request_pub = self.create_publisher(String, 'perception_requests', 10)
+
+        # Store environmental information
+        self.detected_objects = []
+        self.environment_map = None
+        self.perception_lock = threading.Lock()
+
+        self.get_logger().info('Perception Integrated Planning node initialized')
+
+    def command_callback(self, msg):
+        command = msg.data
+        self.get_logger().info(f'Received command: {command}')
+
+        try:
+            # Get current environmental context
+            context = self.get_environmental_context()
+
+            # Decompose command with environmental awareness
+            action_sequence = self.decompose_command_with_context(command, context)
+
+            if action_sequence:
+                # Validate action sequence with perception data
+                validated_sequence = self.validate_with_perception(action_sequence)
+
+                # Publish the validated action sequence
+                action_msg = String()
+                action_msg.data = json.dumps(validated_sequence)
+                self.action_seq_pub.publish(action_msg)
+
+                self.get_logger().info(f'Published validated action sequence')
+
+        except Exception as e:
+            self.get_logger().error(f'Error in planning: {e}')
+
+    def get_environmental_context(self):
+        """
+        Gather environmental context for planning
+        """
+        with self.perception_lock:
+            context = {
+                "detected_objects": self.detected_objects,
+                "environment_map": self.environment_map,
+                "current_pose": self.get_current_pose()
+            }
+        return json.dumps(context)
+
+    def decompose_command_with_context(self, command, context):
+        """
+        Decompose command using environmental context
+        """
+        prompt = f"""
+        You are a robot task planner with environmental awareness.
+        Decompose the following command considering the current environment.
+
+        Environment Context: {context}
+
+        Command: "{command}"
+
+        Provide the response as a JSON array of action objects.
+        Consider the environmental constraints and available objects when planning.
+
+        Response format:
+        {{
+            "actions": [
+                {{
+                    "action_type": "navigation|manipulation|perception",
+                    "action_name": "action_name",
+                    "parameters": {{"param1": "value1"}},
+                    "description": "description",
+                    "perception_check": "optional perception check before action"
+                }}
+            ]
+        }}
+        """
+
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a robot task planner with environmental awareness. Output only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+
+        try:
+            content = response.choices[0].message.content
+            start_idx = content.find('{')
+            end_idx = content.rfind('}') + 1
+
+            if start_idx != -1 and end_idx != 0:
+                json_str = content[start_idx:end_idx]
+                result = json.loads(json_str)
+                return result.get('actions', [])
+        except json.JSONDecodeError:
+            self.get_logger().error('Error parsing LLM response as JSON')
+
+        return []
+
+    def validate_with_perception(self, action_sequence):
+        """
+        Validate action sequence with current perception data
+        """
+        validated_sequence = []
+
+        for action in action_sequence:
+            # Check if action requires perception validation
+            if 'perception_check' in action:
+                # Request perception data for validation
+                self.request_perception_check(action['perception_check'])
+
+                # Wait briefly for perception data or continue with conditional logic
+                # In practice, you might want to implement a more sophisticated waiting mechanism
+                validated_sequence.append(action)
+            else:
+                validated_sequence.append(action)
+
+        return validated_sequence
+
+    def request_perception_check(self, check_request):
+        """
+        Request perception system to verify conditions before action
+        """
+        request_msg = String()
+        request_msg.data = json.dumps(check_request)
+        self.perception_request_pub.publish(request_msg)
+
+    def object_detection_callback(self, msg):
+        """
+        Update detected objects from perception system
+        """
+        with self.perception_lock:
+            # Process detected objects from marker array
+            self.detected_objects = self.process_detected_objects(msg.markers)
+
+    def map_callback(self, msg):
+        """
+        Update environment map
+        """
+        with self.perception_lock:
+            self.environment_map = json.loads(msg.data)
+
+    def process_detected_objects(self, markers):
+        """
+        Process marker array into structured object information
+        """
+        objects = []
+        for marker in markers:
+            obj = {
+                "name": marker.ns,
+                "type": marker.type,
+                "position": {
+                    "x": marker.pose.position.x,
+                    "y": marker.pose.position.y,
+                    "z": marker.pose.position.z
+                },
+                "confidence": marker.id  # Using ID field for confidence in this example
+            }
+            objects.append(obj)
+        return objects`}
+/>
+
+## ROS 2 Packages and Examples for LLM Orchestration
+
+### LLM Orchestration Architecture
+
+<ArchitectureDiagram
+  variant="communication"
+  title="LLM Orchestration Architecture"
+  description="Shows the communication flow between LLM interfaces, task planners, action executors, and ROS 2 infrastructure"
+  highlightElements={["llm_interface", "task_planner", "action_executor", "ros_infrastructure"]}
+/>
+
+### Example Package Structure
+
+```
+robot_llm_planning/
+├── CMakeLists.txt
+├── package.xml
+├── launch/
+│   ├── gpt4o_planner.launch.py
+│   └── llama3_planner.launch.py
+├── config/
+│   └── llm_config.yaml
+├── src/
+│   ├── llm_task_planner.cpp
+│   ├── gpt4o_interface.cpp
+│   └── llama3_local_interface.cpp
+└── scripts/
+    └── prompt_templates/
+```
+
+<CodeExample
+  language="python"
+  title="LLM Orchestration Example Package"
+  description="Example ROS 2 package structure for LLM-based task planning"
+  code={`# robot_llm_planning/robot_llm_planning/llm_task_planner.py
+
+import rclpy
+from rclpy.node import Node
+from rclpy.action import ActionClient
+from std_msgs.msg import String
+from geometry_msgs.msg import PoseStamped
+import json
+import threading
+import time
+
+class LLMTaksPlanner(Node):
+    def __init__(self):
+        super().__init__('llm_task_planner')
+
+        # Parameter for selecting LLM provider
+        self.declare_parameter('llm_provider', 'gpt4o')
+        self.declare_parameter('api_key', '')
+
+        llm_provider = self.get_parameter('llm_provider').get_parameter_value().string_value
+
+        # Initialize appropriate LLM interface
+        if llm_provider == 'gpt4o':
+            from .gpt4o_interface import GPT4oInterface
+            self.llm_interface = GPT4oInterface(
+                api_key=self.get_parameter('api_key').get_parameter_value().string_value
+            )
+        elif llm_provider == 'llama3':
+            from .llama3_interface import Llama3Interface
+            self.llm_interface = Llama3Interface()
+        else:
+            raise ValueError(f'Unsupported LLM provider: {llm_provider}')
+
+        # Subscribers
+        self.command_sub = self.create_subscription(
+            String,
+            'high_level_commands',
+            self.command_callback,
+            10
+        )
+
+        # Publishers
+        self.action_sequence_pub = self.create_publisher(
+            String,
+            'action_sequences',
+            10
+        )
+
+        # Action clients for executing actions
+        self.navigation_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
+        self.manipulation_client = ActionClient(self, ManipulateObject, 'manipulate_object')
+
+        # Threading for handling LLM calls without blocking
+        self.planning_thread = None
+        self.planning_lock = threading.Lock()
+
+        self.get_logger().info(f'LLM Task Planner initialized with {llm_provider}')
+
+    def command_callback(self, msg):
+        """Handle incoming high-level commands"""
+        command = msg.data
+        self.get_logger().info(f'Received command: {command}')
+
+        # Use threading to avoid blocking the main ROS thread
+        self.planning_thread = threading.Thread(
+            target=self.plan_and_execute,
+            args=(command,)
+        )
+        self.planning_thread.start()
+
+    def plan_and_execute(self, command):
+        """Plan and execute the command in a separate thread"""
+        with self.planning_lock:
+            try:
+                # Decompose command using LLM
+                self.get_logger().info('Planning with LLM...')
+                action_sequence = self.llm_interface.decompose_command(command)
+
+                if not action_sequence:
+                    self.get_logger().warn('No action sequence generated')
+                    return
+
+                # Publish action sequence for monitoring
+                action_msg = String()
+                action_msg.data = json.dumps(action_sequence)
+                self.action_sequence_pub.publish(action_msg)
+
+                # Execute the action sequence
+                self.get_logger().info(f'Executing {len(action_sequence)} actions')
+                success = self.execute_action_sequence(action_sequence)
+
+                if success:
+                    self.get_logger().info('Command execution completed successfully')
+                else:
+                    self.get_logger().warn('Command execution failed')
+
+            except Exception as e:
+                self.get_logger().error(f'Error in planning and execution: {e}')
+
+    def execute_action_sequence(self, action_sequence):
+        """Execute the sequence of actions"""
+        for i, action in enumerate(action_sequence):
+            self.get_logger().info(f'Executing action {i+1}/{len(action_sequence)}: {action["action_name"]}')
+
+            success = False
+            if action['action_type'] == 'navigation':
+                success = self.execute_navigation_action(action)
+            elif action['action_type'] == 'manipulation':
+                success = self.execute_manipulation_action(action)
+            elif action['action_type'] == 'perception':
+                success = self.execute_perception_action(action)
+
+            if not success:
+                self.get_logger().error(f'Action {i+1} failed: {action}')
+                return False
+
+            # Small delay between actions for stability
+            time.sleep(0.5)
+
+        return True
+
+    def execute_navigation_action(self, action):
+        """Execute navigation action"""
+        goal_msg = NavigateToPose.Goal()
+        # Populate goal message based on action parameters
+        goal_msg.pose = self.create_pose_from_params(action['parameters'])
+
+        # Send goal and wait for result
+        self.navigation_client.wait_for_server()
+        future = self.navigation_client.send_goal_async(goal_msg)
+        # In practice, you'd want to handle the future properly
+        return True  # Simplified for example
+
+    def execute_manipulation_action(self, action):
+        """Execute manipulation action"""
+        goal_msg = ManipulateObject.Goal()
+        # Populate goal message based on action parameters
+        goal_msg.object_type = action['parameters'].get('object_type', 'unknown')
+        goal_msg.target_pose = self.create_pose_from_params(action['parameters'])
+
+        # Send goal and wait for result
+        self.manipulation_client.wait_for_server()
+        future = self.manipulation_client.send_goal_async(goal_msg)
+        # In practice, you'd want to handle the future properly
+        return True  # Simplified for example
+
+    def execute_perception_action(self, action):
+        """Execute perception action"""
+        # Publish perception request
+        perception_msg = String()
+        perception_msg.data = json.dumps(action['parameters'])
+        # In practice, this would go to a perception node
+        return True  # Simplified for example
+
+    def create_pose_from_params(self, params):
+        """Create PoseStamped from action parameters"""
+        pose = PoseStamped()
+        # Extract pose from parameters
+        if 'target_location' in params:
+            # Map location name to coordinates
+            pass
+        elif 'position' in params:
+            pose.pose.position.x = params['position'].get('x', 0.0)
+            pose.pose.position.y = params['position'].get('y', 0.0)
+            pose.pose.position.z = params['position'].get('z', 0.0)
+        return pose`}
+/>
+
+## Performance Optimization and Cost Management
+
+### Managing LLM Usage for Robotics
+
+<ConceptExplainer
+  concept="LLM Usage Optimization for Robotics"
+  description="LLM usage optimization in robotics involves balancing the benefits of sophisticated language understanding with practical constraints like latency, cost, and reliability."
+  examples={[
+    "Caching common command decompositions",
+    "Using smaller models for simple tasks",
+    "Implementing fallback strategies",
+    "Rate limiting API calls"
+  ]}
+  relatedConcepts={["Cost Management", "Latency Optimization", "Reliability", "Caching"]}
+>
+
+### Optimization Strategies
+
+1. **Caching**: Store results for common commands
+2. **Model Selection**: Use appropriate model size for task complexity
+3. **Query Batching**: Combine related queries when possible
+4. **Local Processing**: Use local models for simple tasks
+5. **Fallback Systems**: Implement deterministic fallbacks
+
+</ConceptExplainer>
+
+## Troubleshooting and Best Practices
+
+### Common Issues and Solutions
+
+- **High Latency**: Use smaller models or implement query caching
+- **API Costs**: Implement rate limiting and caching strategies
+- **Inconsistent Outputs**: Use structured prompting and response validation
+- **Context Loss**: Implement conversation memory for multi-turn interactions
+- **Safety Concerns**: Add safety validation layers before executing LLM-generated actions
+
+### Best Practices
+
+1. **Always validate LLM outputs** before executing actions
+2. **Implement proper error handling** for API failures
+3. **Use appropriate timeouts** for LLM calls to prevent blocking
+4. **Log all interactions** for debugging and improvement
+5. **Consider privacy** when sending data to cloud-based LLMs
+
+## Summary
+
+This chapter covered the integration of Large Language Models for cognitive planning in robotics. You learned how to:
+
+- Integrate both cloud-based (GPT-4o) and local (Llama 3) LLMs with ROS 2
+- Design effective prompting strategies for reliable task decomposition
+- Implement perception feedback integration for adaptive planning
+- Create ROS 2 packages for LLM orchestration
+- Optimize LLM usage considering robotics constraints
+
+The next chapter will explore Vision-Language-Action models that directly map visual input and language commands to robot actions.
+
+</ChapterLayout>

@@ -5,6 +5,15 @@ title: "Module 4 - Vision-Language-Action (VLA)"
 description: "Integrating perception, communication, and action in humanoid robots"
 ---
 
+import ChapterLayout from '@site/src/components/ChapterLayout';
+
+<ChapterLayout
+  title="Module 4: Vision-Language-Action (VLA)"
+  description="Integrating perception, communication, and action in humanoid robots"
+  previous={{path: '/docs/module-3-ai-robot-brain', title: 'Module 3: AI-Robot Brain (NVIDIA Isaac™)'}}
+  next={{path: '/docs/module-4-vision-language-action/voice-to-action', title: 'Voice-to-Action Processing'}}
+>
+
 # Module 4: Vision-Language-Action (VLA)
 
 This advanced module focuses on the integration of vision, language, and action systems in humanoid robots. We'll explore how these three modalities work together to enable sophisticated human-robot interaction and complex task execution.
@@ -14,6 +23,9 @@ This advanced module focuses on the integration of vision, language, and action 
 In this module, you will learn about:
 
 - Vision-language models for robotic applications
+- Speech recognition and natural language command processing
+- Large Language Models for cognitive planning and task decomposition
+- Vision-Language-Action models for end-to-end control
 - Multimodal perception and understanding
 - Language-guided robotic action
 - Human-robot interaction and communication
@@ -23,22 +35,77 @@ In this module, you will learn about:
 
 After completing this module, you will be able to:
 
-- Implement vision-language models for robotic perception
-- Design language-guided action systems
+- Implement voice-to-action systems that convert spoken commands into ROS 2 actions
+- Integrate Large Language Models for high-level task planning and decomposition
+- Deploy Vision-Language-Action models for direct vision-to-action mapping
 - Create multimodal interfaces for human-robot interaction
 - Develop end-to-end trainable VLA systems
+- Integrate perception feedback into planning loops
 - Evaluate and optimize VLA system performance
+- Implement sim-to-real transfer techniques for deployment
+
+## Module Structure
+
+This module is organized into three main chapters with progressively complex examples:
+
+1. **Chapter 1: Voice-to-Action – Speech Recognition and Natural Language Command Processing**
+   - Integrating OpenAI Whisper or open-source alternatives for real-time speech-to-text
+   - Preprocessing voice commands for improved accuracy
+   - Basic ROS 2 nodes for audio capture and transcription
+   - Bridging spoken instructions to textual inputs for downstream processing
+
+2. **Chapter 2: Cognitive Planning with LLMs – Translating Language to Action Sequences**
+   - Using LLMs (e.g., GPT-4o, Llama 3, or open-source models) for high-level task planning
+   - Prompting strategies to decompose natural language commands (e.g., "Clean the room") into sequences of atomic ROS 2 actions/goals
+   - Integrating perception feedback into planning loops
+   - ROS 2 packages and examples for LLM orchestration
+
+3. **Chapter 3: Vision-Language-Action Models for End-to-End Humanoid Control**
+   - Introduction to modern VLA models (e.g., OpenVLA, GR00T, Helix concepts)
+   - Fine-tuning or deploying open-source VLAs in Isaac Sim
+   - Direct mapping from vision + language to low-level actions
+   - Object identification, manipulation planning, and bipedal navigation
+   - Capstone teaser with full voice-to-VLA pipeline
 
 ## Topics Covered
 
-1. [Introduction to Vision-Language-Action Systems](./introduction-to-vla)
-2. [Multimodal Perception](./multimodal-perception)
-3. [Language-Guided Action](./language-guided-action)
-4. [Human-Robot Interaction](./human-robot-interaction)
-5. [Advanced VLA Applications](./advanced-vla-applications)
+1. [Chapter 1: Voice-to-Action – Speech Recognition and Natural Language Command Processing](./voice-to-action)
+2. [Chapter 2: Cognitive Planning with LLMs – Translating Language to Action Sequences](./cognitive-planning)
+3. [Chapter 3: Vision-Language-Action Models for End-to-End Humanoid Control](./end-to-end-vla-control)
+4. [Advanced VLA Applications](./advanced-vla-applications)
 
-:::caution
-VLA systems require careful attention to ethical considerations, safety, and interpretability of decisions.
-:::
+## Hands-On Examples
 
-Let's start by understanding the fundamentals of Vision-Language-Action systems.
+This module includes 4 progressively complex examples:
+
+1. [Example 1: Voice Command Echo](./examples/voice-command-echo) - Basic audio capture and transcription
+2. [Example 2: LLM Task Decomposition](./examples/llm-task-decomposition) - Converting language commands to action sequences
+3. [Example 3: Perception-Integrated Planning](./examples/perception-integrated-planning) - Adding perception feedback to planning
+4. [Example 4: VLA Inference in Simulation](./examples/vla-inference-simulation) - Complete voice-to-action pipeline in Isaac Sim
+
+## Prerequisites
+
+Before starting this module, you should have:
+- Completed Module 1 (ROS 2), Module 2 (Simulation), and Module 3 (NVIDIA Isaac)
+- Basic understanding of Python and deep learning concepts
+- Experience with ROS 2 Humble or Iron
+- Understanding of basic simulation concepts
+
+## Key Concepts
+
+Throughout this module, you'll encounter these important concepts:
+- Vision-language models for robotic applications
+- Speech recognition and natural language processing
+- Large Language Model integration for planning
+- Multimodal perception and understanding
+- End-to-end learning for VLA systems
+- Sim-to-real transfer techniques
+- Human-robot interaction and communication
+
+## Next Steps
+
+Begin with Chapter 1 to explore voice processing and speech recognition for humanoid robotics. We'll start with the fundamentals and gradually build up to complex perception and action systems.
+
+[Next: Chapter 1 - Voice-to-Action Processing](./voice-to-action)
+
+</ChapterLayout>

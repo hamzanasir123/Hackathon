@@ -1,0 +1,830 @@
+---
+sidebar_label: "Example 2: LLM Task Decomposition"
+sidebar_position: 2
+title: "Example 2: LLM Task Decomposition"
+description: "Integrating LLM with voice command input to decompose commands into action sequences and execute simple ROS 2 actions"
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+
+<ChapterLayout
+  title="Example 2: LLM Task Decomposition"
+  description="Integrating LLM with voice command input to decompose commands into action sequences and execute simple ROS 2 actions"
+  previous={{path: '/docs/module-4-vision-language-action/examples/voice-command-echo', title: 'Example 1: Voice Command Echo'}}
+  next={{path: '/docs/module-4-vision-language-action/examples/perception-integrated-planning', title: 'Example 3: Perception-Integrated Planning'}}
+>
+
+## Learning Objectives
+
+After completing this example, you will be able to:
+
+- Integrate Large Language Models (LLMs) with voice command input
+- Implement task decomposition to convert natural language into action sequences
+- Execute simple ROS 2 actions based on LLM output
+- Handle command parsing and validation
+- Implement basic error handling for LLM responses
+
+## Introduction
+
+This example builds on the voice processing foundation to integrate LLMs for task decomposition. It demonstrates how to take voice commands, use an LLM to decompose them into action sequences, and execute those actions in ROS 2.
+
+## LLM Integration Framework
+
+<ConceptExplainer
+  concept="LLM Integration for Task Planning"
+  description="LLM integration for task planning involves using large language models to interpret natural language commands and decompose them into executable action sequences for robotic systems."
+  examples={[
+    "Converting 'Clean the room' to 'Find object', 'Grasp object', 'Place object'",
+    "Interpreting 'Go to kitchen' as navigation sequence",
+    "Parsing 'Bring me water' into fetch task sequence"
+  ]}
+  relatedConcepts={["Natural Language Processing", "Task Planning", "Action Decomposition", "Robot Control"]}
+>
+
+### Integration Components
+
+1. **Command Input**: Natural language commands from voice or text
+2. **Prompt Engineering**: Structuring inputs for reliable LLM responses
+3. **Action Parsing**: Converting LLM output to executable actions
+4. **Execution Interface**: Mapping actions to ROS 2 services/actions
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="LLM Integration Node"
+  description="Node that integrates with LLM API for task decomposition"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from openai import OpenAI
+import json
+import time
+import re
+
+class LLMTaskDecompositionNode(Node):
+    def __init__(self):
+        super().__init__('llm_task_decomposition_node')
+
+        # Initialize OpenAI client (or your preferred LLM provider)
+        # Make sure to set OPENAI_API_KEY in environment
+        try:
+            self.client = OpenAI()
+        except Exception as e:
+            self.get_logger().error(f'Failed to initialize OpenAI client: {e}')
+            return
+
+        # Subscribe to voice commands (could come from voice echo example)
+        self.command_sub = self.create_subscription(
+            String,
+            'voice_commands',  # This could be 'transcribed_text' from voice echo
+            self.command_callback,
+            10
+        )
+
+        # Publisher for action sequences
+        self.action_seq_pub = self.create_publisher(String, 'action_sequences', 10)
+
+        # Publisher for task status
+        self.status_pub = self.create_publisher(String, 'task_status', 10)
+
+        self.get_logger().info('LLM Task Decomposition node initialized')
+
+    def command_callback(self, msg):
+        """Process incoming voice command and decompose into actions"""
+        command = msg.data.strip()
+
+        if not command:
+            return
+
+        self.get_logger().info(f'Received command for decomposition: {command}')
+
+        # Publish status
+        status_msg = String()
+        status_msg.data = f'Decomposing command: {command}'
+        self.status_pub.publish(status_msg)
+
+        try:
+            # Decompose command using LLM
+            action_sequence = self.decompose_command(command)
+
+            if action_sequence:
+                # Publish the action sequence
+                action_msg = String()
+                action_msg.data = json.dumps(action_sequence)
+                self.action_seq_pub.publish(action_msg)
+
+                self.get_logger().info(f'Decomposed into {len(action_sequence)} actions')
+
+                # Publish completion status
+                status_msg.data = f'Successfully decomposed {len(action_sequence)} actions'
+                self.status_pub.publish(status_msg)
+            else:
+                self.get_logger().warn(f'Could not decompose command: {command}')
+                status_msg.data = f'Failed to decompose command: {command}'
+                self.status_pub.publish(status_msg)
+
+        except Exception as e:
+            self.get_logger().error(f'Error decomposing command: {e}')
+            status_msg.data = f'Error decomposing command: {e}'
+            self.status_pub.publish(status_msg)
+
+    def decompose_command(self, command):
+        """
+        Use LLM to decompose a natural language command into action sequence
+        """
+        # Create a structured prompt for task decomposition
+        prompt = f"""
+        You are a robot task planner. Decompose the following natural language command
+        into a sequence of specific robot actions that can be executed in ROS 2.
+
+        Command: "{command}"
+
+        Provide the response as a JSON array of action objects with the following structure:
+        {{
+            "actions": [
+                {{
+                    "action_type": "navigation" | "manipulation" | "perception",
+                    "action_name": "move_to_location" | "grasp_object" | "detect_object",
+                    "parameters": {{"location": "kitchen", "object": "cup", ...}},
+                    "description": "Human-readable description of the action"
+                }}
+            ]
+        }}
+
+        Be specific about locations, objects, and parameters needed for execution.
+        If the command is too ambiguous, return an empty actions array.
+
+        Response (JSON only):
+        """
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",  # Use appropriate model
+                messages=[
+                    {"role": "system", "content": "You are a robot task planner. Output only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=500
+            )
+
+            # Extract and parse the response
+            content = response.choices[0].message.content
+
+            # Find JSON in response (in case it's surrounded by other text)
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+
+            if json_match:
+                json_str = json_match.group()
+                result = json.loads(json_str)
+                return result.get('actions', [])
+            else:
+                self.get_logger().warn(f'No JSON found in LLM response: {content}')
+                return []
+
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f'Error parsing LLM response as JSON: {e}')
+            return []
+        except Exception as e:
+            self.get_logger().error(f'Error calling LLM API: {e}')
+            return []
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    llm_node = LLMTaskDecompositionNode()
+
+    try:
+        rclpy.spin(llm_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        llm_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Action Sequence Execution
+
+<ConceptExplainer
+  concept="Action Sequence Execution"
+  description="Action sequence execution involves taking a series of planned actions and executing them in the correct order, with appropriate error handling and state management."
+  examples={[
+    "Sequential execution of navigation and manipulation actions",
+    "Handling failures and retries in action sequences",
+    "Managing robot state between actions"
+  ]}
+  relatedConcepts={["Task Execution", "Action Planning", "State Management", "Error Handling"]}
+>
+
+### Execution Considerations
+
+1. **Order**: Execute actions in the planned sequence
+2. **Dependencies**: Ensure prerequisites are met before each action
+3. **Monitoring**: Track execution status and outcomes
+4. **Recovery**: Handle failures and implement fallback strategies
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Action Sequence Executor Node"
+  description="Node that executes action sequences generated by LLM"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import JointState
+import json
+import time
+from enum import Enum
+
+class ActionStatus(Enum):
+    PENDING = "pending"
+    EXECUTING = "executing"
+    SUCCESS = "success"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class ActionExecutorNode(Node):
+    def __init__(self):
+        super().__init__('action_executor_node')
+
+        # Subscribe to action sequences
+        self.action_seq_sub = self.create_subscription(
+            String,
+            'action_sequences',
+            self.action_sequence_callback,
+            10
+        )
+
+        # Publishers for different action types
+        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.joint_cmd_pub = self.create_publisher(JointState, 'joint_commands', 10)
+
+        # Publisher for execution status
+        self.status_pub = self.create_publisher(String, 'execution_status', 10)
+
+        # Current execution state
+        self.current_sequence = []
+        self.current_index = 0
+        self.execution_active = False
+        self.current_status = ActionStatus.PENDING
+
+        self.get_logger().info('Action Executor node initialized')
+
+    def action_sequence_callback(self, msg):
+        """Receive and execute action sequence"""
+        try:
+            # Parse the action sequence
+            sequence_data = json.loads(msg.data)
+
+            if isinstance(sequence_data, list):
+                action_sequence = sequence_data
+            elif isinstance(sequence_data, dict) and 'actions' in sequence_data:
+                action_sequence = sequence_data['actions']
+            else:
+                self.get_logger().error(f'Invalid action sequence format: {sequence_data}')
+                return
+
+            if not action_sequence:
+                self.get_logger().info('Received empty action sequence, nothing to execute')
+                return
+
+            self.get_logger().info(f'Received action sequence with {len(action_sequence)} actions')
+
+            # Store sequence and start execution
+            self.current_sequence = action_sequence
+            self.current_index = 0
+            self.execution_active = True
+            self.current_status = ActionStatus.PENDING
+
+            # Publish execution start status
+            status_msg = String()
+            status_msg.data = f'Starting execution of {len(action_sequence)} actions'
+            self.status_pub.publish(status_msg)
+
+            # Execute the sequence
+            self.execute_sequence()
+
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f'Error parsing action sequence JSON: {e}')
+        except Exception as e:
+            self.get_logger().error(f'Error processing action sequence: {e}')
+
+    def execute_sequence(self):
+        """Execute the current action sequence"""
+        if not self.current_sequence or not self.execution_active:
+            return
+
+        # Execute each action in sequence
+        for i, action in enumerate(self.current_sequence):
+            if not self.execution_active:  # Check if execution was cancelled
+                break
+
+            self.current_index = i
+            self.current_status = ActionStatus.EXECUTING
+
+            # Publish current action status
+            status_msg = String()
+            status_msg.data = f'Executing action {i+1}/{len(self.current_sequence)}: {action.get("action_name", "unknown")}'
+            self.status_pub.publish(status_msg)
+
+            # Execute the action
+            success = self.execute_single_action(action)
+
+            if not success:
+                self.get_logger().error(f'Action {i+1} failed: {action}')
+                self.current_status = ActionStatus.FAILED
+
+                # Publish failure status
+                status_msg.data = f'Action {i+1} failed: {action.get("action_name", "unknown")}'
+                self.status_pub.publish(status_msg)
+
+                # Stop execution on failure
+                break
+
+            # Small delay between actions for stability
+            time.sleep(0.5)
+
+        # Sequence completed or failed
+        self.execution_active = False
+        self.current_status = ActionStatus.SUCCESS if self.current_index == len(self.current_sequence) - 1 else ActionStatus.FAILED
+
+        # Publish completion status
+        status_msg = String()
+        status_msg.data = f'Sequence completed with status: {self.current_status.value}'
+        self.status_pub.publish(status_msg)
+
+    def execute_single_action(self, action):
+        """Execute a single action based on its type"""
+        action_type = action.get('action_type', '')
+        action_name = action.get('action_name', '')
+        parameters = action.get('parameters', {})
+
+        self.get_logger().info(f'Executing {action_type} action: {action_name} with params: {parameters}')
+
+        try:
+            if action_type == 'navigation':
+                return self.execute_navigation_action(action_name, parameters)
+            elif action_type == 'manipulation':
+                return self.execute_manipulation_action(action_name, parameters)
+            elif action_type == 'perception':
+                return self.execute_perception_action(action_name, parameters)
+            else:
+                self.get_logger().warn(f'Unknown action type: {action_type}')
+                return False
+
+        except Exception as e:
+            self.get_logger().error(f'Error executing action {action_name}: {e}')
+            return False
+
+    def execute_navigation_action(self, action_name, parameters):
+        """Execute navigation-related actions"""
+        twist_msg = Twist()
+
+        if action_name == 'move_to_location':
+            # Example: Move forward for a fixed distance
+            # In practice, this would involve more complex navigation with path planning
+            target_location = parameters.get('location', 'unknown')
+
+            # Simple forward movement as example
+            twist_msg.linear.x = 0.5  # Move forward at 0.5 m/s
+            twist_msg.angular.z = 0.0
+
+            self.cmd_vel_pub.publish(twist_msg)
+            time.sleep(2)  # Move for 2 seconds as example
+
+            # Stop robot
+            twist_msg.linear.x = 0.0
+            self.cmd_vel_pub.publish(twist_msg)
+
+            self.get_logger().info(f'Moved toward {target_location}')
+            return True
+
+        elif action_name == 'rotate_in_place':
+            angle = parameters.get('angle', 90)  # degrees
+            # Convert to angular velocity and time
+            angular_speed = 0.5  # rad/s
+            duration = abs(angle) * 3.14159 / 180.0 / angular_speed
+
+            twist_msg.angular.z = angular_speed if angle > 0 else -angular_speed
+            self.cmd_vel_pub.publish(twist_msg)
+            time.sleep(duration)
+
+            # Stop rotation
+            twist_msg.angular.z = 0.0
+            self.cmd_vel_pub.publish(twist_msg)
+
+            self.get_logger().info(f'Rotated {angle} degrees')
+            return True
+
+        else:
+            self.get_logger().warn(f'Unknown navigation action: {action_name}')
+            return False
+
+    def execute_manipulation_action(self, action_name, parameters):
+        """Execute manipulation-related actions"""
+        joint_msg = JointState()
+
+        if action_name == 'grasp_object':
+            # Example: Set joint positions for grasping
+            object_name = parameters.get('object', 'unknown')
+
+            # Example joint positions for grasping (these would be specific to your robot)
+            joint_msg.position = [0.0, 0.5, 0.0, 0.8]  # Example joint positions
+            joint_msg.name = ['joint1', 'joint2', 'joint3', 'gripper']
+
+            self.joint_cmd_pub.publish(joint_msg)
+            time.sleep(2)  # Allow time for grasp
+
+            self.get_logger().info(f'Attempted to grasp {object_name}')
+            return True
+
+        elif action_name == 'release_object':
+            # Example: Release by opening gripper
+            joint_msg.position = [0.0, 0.5, 0.0, 0.0]  # Open gripper
+            joint_msg.name = ['joint1', 'joint2', 'joint3', 'gripper']
+
+            self.joint_cmd_pub.publish(joint_msg)
+            time.sleep(1)  # Allow time for release
+
+            self.get_logger().info('Released object')
+            return True
+
+        else:
+            self.get_logger().warn(f'Unknown manipulation action: {action_name}')
+            return False
+
+    def execute_perception_action(self, action_name, parameters):
+        """Execute perception-related actions"""
+        # For this example, perception actions are just logged
+        # In practice, these would trigger actual perception routines
+
+        if action_name == 'detect_object':
+            object_type = parameters.get('object_type', 'any')
+            search_area = parameters.get('search_area', 'current_view')
+
+            self.get_logger().info(f'Detected {object_type} in {search_area}')
+            # In practice, this would call object detection services
+            return True
+
+        elif action_name == 'scan_environment':
+            self.get_logger().info('Scanning environment')
+            # In practice, this would trigger environment scanning
+            return True
+
+        else:
+            self.get_logger().warn(f'Unknown perception action: {action_name}')
+            return False
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    executor_node = ActionExecutorNode()
+
+    try:
+        rclpy.spin(executor_node)
+    except KeyboardInterrupt:
+        # Cancel ongoing execution
+        executor_node.execution_active = False
+        pass
+    finally:
+        executor_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Integration with Voice Commands
+
+<ArchitectureDiagram
+  variant="communication"
+  title="LLM Task Decomposition Architecture"
+  description="Shows the flow from voice commands through LLM decomposition to action execution"
+  highlightElements={["voice_input", "llm_decomposition", "action_execution", "ros_interfaces"]}
+/>
+
+<CodeExample
+  language="python"
+  title="Voice Command to LLM Integration"
+  description="Node that bridges voice commands to LLM task decomposition"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+import json
+
+class VoiceToLLMNode(Node):
+    def __init__(self):
+        super().__init__('voice_to_llm_node')
+
+        # Subscribe to transcribed voice commands
+        self.voice_sub = self.create_subscription(
+            String,
+            'transcribed_text',  # From voice echo example
+            self.voice_command_callback,
+            10
+        )
+
+        # Publisher to send commands to LLM decomposer
+        self.llm_command_pub = self.create_publisher(String, 'voice_commands', 10)
+
+        # Publisher for system status
+        self.status_pub = self.create_publisher(String, 'system_status', 10)
+
+        self.get_logger().info('Voice to LLM integration node initialized')
+
+    def voice_command_callback(self, msg):
+        """Process voice command and forward to LLM"""
+        command = msg.data.strip()
+
+        if not command:
+            return
+
+        # Validate command is likely a robot command
+        if self.is_robot_command(command):
+            self.get_logger().info(f'Forwarding command to LLM: {command}')
+
+            # Forward command to LLM task decomposer
+            command_msg = String()
+            command_msg.data = command
+            self.llm_command_pub.publish(command_msg)
+
+            # Publish status
+            status_msg = String()
+            status_msg.data = f'Processing command: {command}'
+            self.status_pub.publish(status_msg)
+        else:
+            self.get_logger().info(f'Non-robot command ignored: {command}')
+
+    def is_robot_command(self, command):
+        """Check if command is likely a robot command"""
+        robot_keywords = [
+            'move', 'go', 'navigate', 'drive', 'walk', 'turn', 'rotate',
+            'grasp', 'grab', 'pick', 'lift', 'place', 'drop', 'release',
+            'find', 'detect', 'look', 'see', 'bring', 'fetch', 'carry',
+            'stop', 'wait', 'pause', 'continue', 'start'
+        ]
+
+        command_lower = command.lower()
+        return any(keyword in command_lower for keyword in robot_keywords)
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    voice_llm_node = VoiceToLLMNode()
+
+    try:
+        rclpy.spin(voice_llm_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        voice_llm_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Error Handling and Validation
+
+<ConceptExplainer
+  concept="LLM Response Validation"
+  description="LLM response validation involves checking the output from language models to ensure it conforms to expected formats and makes sense for the intended application."
+  examples={[
+    "Validating JSON structure of action sequences",
+    "Checking for valid action types and parameters",
+    "Ensuring action sequences are executable",
+    "Handling ambiguous or unparseable responses"
+  ]}
+  relatedConcepts={["Response Validation", "Error Handling", "Safety Checks", "Input Sanitization"]}
+>
+
+### Validation Strategies
+
+1. **Format Validation**: Ensure JSON structure is correct
+2. **Semantic Validation**: Check action types and parameters are valid
+3. **Safety Validation**: Ensure actions are safe to execute
+4. **Completeness Validation**: Verify all required fields are present
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="LLM Response Validator"
+  description="Component to validate and sanitize LLM responses"
+  code={`class LLMResponseValidator:
+    """Validate and sanitize LLM responses for robot execution"""
+
+    VALID_ACTION_TYPES = {'navigation', 'manipulation', 'perception'}
+
+    VALID_NAVIGATION_ACTIONS = {
+        'move_to_location', 'rotate_in_place', 'navigate_to', 'go_to'
+    }
+
+    VALID_MANIPULATION_ACTIONS = {
+        'grasp_object', 'release_object', 'pick_up', 'put_down',
+        'move_arm', 'open_gripper', 'close_gripper'
+    }
+
+    VALID_PERCEPTION_ACTIONS = {
+        'detect_object', 'scan_environment', 'identify_object',
+        'locate_object', 'analyze_scene'
+    }
+
+    def __init__(self):
+        self.get_logger = lambda: None  # Placeholder - would be injected in a real node
+
+    def validate_action_sequence(self, action_sequence):
+        """Validate an entire action sequence"""
+        if not isinstance(action_sequence, list):
+            return False, "Action sequence must be a list"
+
+        for i, action in enumerate(action_sequence):
+            is_valid, error_msg = self.validate_single_action(action, i)
+            if not is_valid:
+                return False, f"Action {i}: {error_msg}"
+
+        return True, "Valid action sequence"
+
+    def validate_single_action(self, action, index=None):
+        """Validate a single action object"""
+        if not isinstance(action, dict):
+            return False, f"Action {index} is not a dictionary"
+
+        # Check required fields
+        required_fields = ['action_type', 'action_name', 'parameters']
+        for field in required_fields:
+            if field not in action:
+                return False, f"Missing required field '{field}' in action {index}"
+
+        # Validate action type
+        action_type = action['action_type']
+        if action_type not in self.VALID_ACTION_TYPES:
+            return False, f"Invalid action type '{action_type}' in action {index}"
+
+        # Validate action name based on type
+        action_name = action['action_name']
+        if action_type == 'navigation' and action_name not in self.VALID_NAVIGATION_ACTIONS:
+            return False, f"Invalid navigation action '{action_name}' in action {index}"
+        elif action_type == 'manipulation' and action_name not in self.VALID_MANIPULATION_ACTIONS:
+            return False, f"Invalid manipulation action '{action_name}' in action {index}"
+        elif action_type == 'perception' and action_name not in self.VALID_PERCEPTION_ACTIONS:
+            return False, f"Invalid perception action '{action_name}' in action {index}"
+
+        # Validate parameters
+        parameters = action['parameters']
+        if not isinstance(parameters, dict):
+            return False, f"Parameters must be a dictionary in action {index}"
+
+        # Additional type-specific validation
+        is_valid, error_msg = self.validate_parameters(action_type, action_name, parameters)
+        if not is_valid:
+            return False, f"Parameter validation failed in action {index}: {error_msg}"
+
+        return True, "Valid action"
+
+    def validate_parameters(self, action_type, action_name, parameters):
+        """Validate action-specific parameters"""
+        if action_type == 'navigation':
+            if action_name in ['move_to_location', 'navigate_to', 'go_to']:
+                if 'location' not in parameters and 'target' not in parameters:
+                    return False, "Navigation action requires 'location' or 'target' parameter"
+
+        elif action_type == 'manipulation':
+            if action_name == 'grasp_object':
+                if 'object' not in parameters and 'object_type' not in parameters:
+                    return False, "Grasp action requires 'object' or 'object_type' parameter"
+
+        elif action_type == 'perception':
+            if action_name == 'detect_object':
+                if 'object_type' not in parameters and 'object' not in parameters:
+                    return False, "Detect action requires 'object_type' or 'object' parameter"
+
+        return True, "Valid parameters"
+
+    def sanitize_response(self, action_sequence):
+        """Sanitize action sequence for safe execution"""
+        sanitized_sequence = []
+
+        for action in action_sequence:
+            # Skip invalid actions but continue processing others
+            is_valid, _ = self.validate_single_action(action)
+            if is_valid:
+                sanitized_action = self.sanitize_single_action(action)
+                sanitized_sequence.append(sanitized_action)
+            else:
+                # Log invalid action but continue
+                print(f"Skipping invalid action: {action}")
+
+        return sanitized_sequence
+
+    def sanitize_single_action(self, action):
+        """Sanitize a single action"""
+        sanitized = action.copy()
+
+        # Sanitize parameters
+        if 'parameters' in sanitized:
+            sanitized_params = sanitized['parameters'].copy()
+
+            # Remove potentially dangerous parameters
+            dangerous_keys = ['script', 'command', 'shell', 'system']
+            for key in dangerous_keys:
+                sanitized_params.pop(key, None)
+
+            sanitized['parameters'] = sanitized_params
+
+        return sanitized
+
+# Example usage in a node
+class ValidatedLLMNode(Node):
+    def __init__(self):
+        super().__init__('validated_llm_node')
+
+        self.validator = LLMResponseValidator()
+
+        # Other initialization code...
+
+    def process_llm_response(self, response):
+        """Process LLM response with validation"""
+        try:
+            action_sequence = json.loads(response)
+
+            # Validate the response
+            is_valid, error_msg = self.validator.validate_action_sequence(action_sequence)
+
+            if is_valid:
+                # Sanitize the response
+                sanitized_sequence = self.validator.sanitize_response(action_sequence)
+
+                # Execute the sanitized sequence
+                self.execute_action_sequence(sanitized_sequence)
+            else:
+                self.get_logger().error(f'LLM response validation failed: {error_msg}')
+
+        except json.JSONDecodeError:
+            self.get_logger().error('LLM response is not valid JSON')`}
+/>
+
+## Testing and Validation
+
+### Running the LLM Task Decomposition System
+
+1. **Set Up API Keys**:
+   ```bash
+   export OPENAI_API_KEY=your_api_key_here
+   # Or set up your preferred LLM provider
+   ```
+
+2. **Launch the System**:
+   ```bash
+   # Start voice processing (from Example 1)
+   ros2 run audio_capture audio_capture_node
+   ros2 run speech_recognition speech_recognition_node
+
+   # Start LLM integration
+   ros2 run llm_integration voice_to_llm_node
+   ros2 run llm_integration llm_task_decomposition_node
+   ros2 run llm_integration action_executor_node
+   ```
+
+3. **Test Commands**:
+   - "Move forward slowly"
+   - "Turn left and go to the kitchen"
+   - "Pick up the red cup"
+
+### Expected Behavior
+
+- Voice commands are captured and transcribed
+- LLM decomposes commands into action sequences
+- Actions are executed in sequence
+- System handles errors gracefully
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+- **API Errors**: Verify API keys and rate limits
+- **Parsing Errors**: Check prompt formatting and JSON extraction
+- **Execution Failures**: Validate action sequences before execution
+- **Rate Limits**: Implement request throttling or caching
+
+## Summary
+
+This example demonstrated:
+
+1. Integration of LLMs with voice command processing
+2. Task decomposition from natural language to action sequences
+3. Safe execution of LLM-generated actions
+4. Proper error handling and validation techniques
+
+The system forms the basis for more complex LLM-integrated robotics applications, building on the voice processing foundation from the previous example.
+
+</ChapterLayout>

@@ -1,0 +1,1758 @@
+---
+sidebar_label: "Vision-Language-Action Models for End-to-End Humanoid Control"
+sidebar_position: 4
+title: "Chapter 3 - Vision-Language-Action Models for End-to-End Humanoid Control"
+description: "Introduction to modern VLA models (e.g., OpenVLA, GR00T, Helix concepts); fine-tuning or deploying open-source VLAs in Isaac Sim; direct mapping from vision + language to low-level actions; object identification, manipulation planning, and bipedal navigation; capstone teaser with full voice-to-VLA pipeline"
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+import SimulationExample from '@site/src/components/SimulationExample';
+
+<ChapterLayout
+  title="Chapter 3 - Vision-Language-Action Models for End-to-End Humanoid Control"
+  description="Introduction to modern VLA models (e.g., OpenVLA, GR00T, Helix concepts); fine-tuning or deploying open-source VLAs in Isaac Sim; direct mapping from vision + language to low-level actions; object identification, manipulation planning, and bipedal navigation; capstone teaser with full voice-to-VLA pipeline"
+  previous={{path: '/docs/module-4-vision-language-action/cognitive-planning', title: 'Cognitive Planning with LLMs'}}
+  next={{path: '/docs/module-4-vision-language-action/examples', title: 'VLA Examples'}}
+>
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Understand the architecture and capabilities of modern Vision-Language-Action (VLA) models
+- Deploy OpenVLA models for direct vision-to-action mapping in robotics applications
+- Integrate VLA models with NVIDIA Isaac Sim for simulation-based training and testing
+- Implement multimodal input processing combining visual and language inputs
+- Create direct mapping systems from vision + language to low-level robot actions
+- Perform object identification and manipulation planning using VLA models
+- Implement bipedal navigation with VLA-based control
+- Design a complete voice-to-VLA pipeline for humanoid control
+
+## Introduction to Vision-Language-Action Models
+
+<ConceptExplainer
+  concept="Vision-Language-Action (VLA) Models"
+  analogy="VLA models are like a unified brain for robots that can simultaneously understand what it sees, comprehend language commands, and decide what actions to take - all in one integrated system."
+  description="Vision-Language-Action models are neural networks that jointly process visual input, natural language commands, and output robot actions in an end-to-end manner, eliminating the need for separate perception, planning, and control modules."
+  examples={[
+    "OpenVLA: Open Vision-Language-Action model from Stanford",
+    "GR00T: Grounded Reasoning for Robotics from NVIDIA",
+    "RT-1/X/2: Robot Transformer models from Google DeepMind",
+    "EmbodiedGPT: Vision-language model for embodied tasks"
+  ]}
+  relatedConcepts={["Multimodal Learning", "End-to-End Learning", "Embodied AI", "Robot Learning"]}
+>
+
+### Key Characteristics of VLA Models
+
+1. **Multimodal Integration**: Process vision and language inputs simultaneously
+2. **End-to-End Learning**: Learn direct mapping from inputs to actions
+3. **Generalization**: Transfer learning across different robots and tasks
+4. **Real-time Capability**: Execute actions with minimal latency
+
+</ConceptExplainer>
+
+<ArchitectureDiagram
+  variant="components"
+  title="VLA Model Architecture"
+  description="Shows the multimodal input processing and direct action output of VLA models"
+  highlightElements={["vision_encoder", "language_encoder", "fusion", "action_head"]}
+/>
+
+## OpenVLA: Open Vision-Language-Action Model
+
+### Architecture and Capabilities
+
+<ConceptExplainer
+  concept="OpenVLA Model"
+  description="OpenVLA is an open-source Vision-Language-Action model that combines a vision encoder, language model, and action prediction head to directly map visual and language inputs to robot actions."
+  examples={[
+    "Pre-trained on multiple robotics datasets",
+    "Supports various robot platforms",
+    "Open-source for research and development",
+    "Fine-tunable for specific tasks"
+  ]}
+  relatedConcepts={["Open-Source Robotics", "Vision Transformers", "Language Models", "Robot Control"]}
+>
+
+### OpenVLA Architecture Components
+
+1. **Vision Encoder**: Processes camera images using vision transformers
+2. **Language Encoder**: Processes natural language commands
+3. **Multimodal Fusion**: Combines visual and language representations
+4. **Action Head**: Outputs low-level robot actions or high-level goals
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="OpenVLA Integration with ROS 2"
+  description="Python code to integrate OpenVLA model with ROS 2 for direct vision-to-action mapping"
+  code={`import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image, JointState
+from geometry_msgs.msg import Twist
+from std_msgs.msg import String
+from cv_bridge import CvBridge
+import torch
+import numpy as np
+import cv2
+from transformers import CLIPVisionModel, CLIPImageProcessor
+from openvla import OpenVLA  # Placeholder - actual import depends on OpenVLA implementation
+
+class OpenVLANode(Node):
+    def __init__(self):
+        super().__init__('openvla_node')
+
+        # Initialize OpenVLA model (this is conceptual - actual implementation may vary)
+        # self.model = OpenVLA.from_pretrained("openvla/openvla-9b")  # Example
+        # self.model.to(self.get_device())
+
+        # Initialize CV bridge for image conversion
+        self.bridge = CvBridge()
+
+        # Subscribe to camera images and language commands
+        self.image_sub = self.create_subscription(
+            Image,
+            'camera/image_raw',
+            self.image_callback,
+            10
+        )
+        self.command_sub = self.create_subscription(
+            String,
+            'vla_commands',  # Commands specifically for VLA model
+            self.command_callback,
+            10
+        )
+
+        # Publishers for different types of robot commands
+        self.joint_cmd_pub = self.create_publisher(JointState, 'joint_commands', 10)
+        self.twist_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        # Store latest inputs
+        self.latest_image = None
+        self.latest_command = None
+        self.command_lock = threading.Lock()
+
+        self.get_logger().info('OpenVLA node initialized')
+
+    def image_callback(self, msg):
+        """
+        Process incoming camera image
+        """
+        try:
+            # Convert ROS Image to OpenCV
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+
+            # Store the image for processing with command
+            with self.command_lock:
+                self.latest_image = cv_image
+
+            # If we have both image and command, run inference
+            if self.latest_command is not None:
+                self.process_vla_inference()
+
+        except Exception as e:
+            self.get_logger().error(f'Error processing image: {e}')
+
+    def command_callback(self, msg):
+        """
+        Process incoming language command
+        """
+        command = msg.data
+
+        with self.command_lock:
+            self.latest_command = command
+
+        # If we have both image and command, run inference
+        if self.latest_image is not None:
+            self.process_vla_inference()
+
+    def process_vla_inference(self):
+        """
+        Run VLA inference with latest image and command
+        """
+        if self.latest_image is None or self.latest_command is None:
+            return
+
+        try:
+            # Preprocess image and command for VLA model
+            processed_image = self.preprocess_image(self.latest_image)
+            processed_command = self.preprocess_command(self.latest_command)
+
+            # Run inference (conceptual - actual implementation depends on specific VLA model)
+            # actions = self.model(processed_image, processed_command)
+
+            # For demonstration, we'll simulate the action generation
+            actions = self.simulate_vla_actions(self.latest_image, self.latest_command)
+
+            # Publish the actions to appropriate ROS topics
+            self.publish_actions(actions)
+
+            # Clear the processed inputs
+            with self.command_lock:
+                self.latest_image = None
+                self.latest_command = None
+
+        except Exception as e:
+            self.get_logger().error(f'Error in VLA inference: {e}')
+
+    def preprocess_image(self, image):
+        """
+        Preprocess image for VLA model input
+        """
+        # Resize image to model's expected input size (e.g., 224x224 for many vision models)
+        resized = cv2.resize(image, (224, 224))
+
+        # Convert BGR to RGB
+        rgb_image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+
+        # Normalize pixel values
+        normalized = rgb_image.astype(np.float32) / 255.0
+
+        # Convert to tensor and add batch dimension
+        tensor_image = torch.from_numpy(normalized).permute(2, 0, 1).unsqueeze(0)
+
+        return tensor_image
+
+    def preprocess_command(self, command):
+        """
+        Preprocess language command for VLA model input
+        """
+        # Tokenization would happen here depending on the specific model
+        # For now, return the command as-is
+        return command
+
+    def simulate_vla_actions(self, image, command):
+        """
+        Simulate VLA action generation (replace with actual model inference)
+        """
+        # This is a placeholder - in reality, this would call the VLA model
+        # For demonstration, we'll return simple actions based on command
+        actions = []
+
+        if "move" in command.lower() or "go" in command.lower():
+            # Generate navigation action
+            actions.append({
+                "type": "navigation",
+                "linear_velocity": 0.2,
+                "angular_velocity": 0.0
+            })
+        elif "grasp" in command.lower() or "pick" in command.lower():
+            # Generate manipulation action
+            actions.append({
+                "type": "manipulation",
+                "joint_positions": [0.5, 0.3, 0.2, 0.1],  # Example joint positions
+                "gripper_position": 0.8
+            })
+        elif "turn" in command.lower() or "rotate" in command.lower():
+            # Generate rotation action
+            actions.append({
+                "type": "navigation",
+                "linear_velocity": 0.0,
+                "angular_velocity": 0.3
+            })
+
+        return actions
+
+    def publish_actions(self, actions):
+        """
+        Publish generated actions to appropriate ROS topics
+        """
+        for action in actions:
+            if action["type"] == "navigation":
+                twist_msg = Twist()
+                twist_msg.linear.x = action.get("linear_velocity", 0.0)
+                twist_msg.angular.z = action.get("angular_velocity", 0.0)
+                self.twist_pub.publish(twist_msg)
+            elif action["type"] == "manipulation":
+                joint_msg = JointState()
+                joint_msg.position = action.get("joint_positions", [])
+                self.joint_cmd_pub.publish(joint_msg)
+
+    def get_device(self):
+        """
+        Determine the appropriate device (CPU or GPU) for model inference
+        """
+        if torch.cuda.is_available():
+            return torch.device('cuda')
+        else:
+            return torch.device('cpu')`}
+/>
+
+## NVIDIA GR00T Integration
+
+### Grounded Reasoning for Robotics
+
+<ConceptExplainer
+  concept="NVIDIA GR00T (Grounded Reasoning for Robotics)"
+  description="GR00T is NVIDIA's approach to grounded reasoning for robotics, focusing on hierarchical reasoning for long-horizon tasks and grounding in the physical world for more robust robot behavior."
+  examples={[
+    "Hierarchical task planning for complex multi-step tasks",
+    "Grounding language commands in physical world context",
+    "Integration with NVIDIA Isaac ecosystem",
+    "Learning from human demonstrations"
+  ]}
+  relatedConcepts={["Hierarchical Planning", "Grounded Language", "Isaac Ecosystem", "Learning from Demonstration"]}
+>
+
+### GR00T Key Features
+
+1. **Hierarchical Reasoning**: Break down complex tasks into manageable subtasks
+2. **Physical Grounding**: Ground language understanding in physical reality
+3. **Isaac Integration**: Designed to work seamlessly with NVIDIA Isaac Sim and Isaac ROS
+4. **Long-Horizon Planning**: Handle tasks that require extended sequences of actions
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="GR00T-Inspired Hierarchical Planning"
+  description="Conceptual implementation of hierarchical planning similar to GR00T's approach"
+  code={`class GR00TPlanningNode(Node):
+    def __init__(self):
+        super().__init__('gr00t_planning_node')
+
+        # Subscribe to high-level commands
+        self.high_level_cmd_sub = self.create_subscription(
+            String, 'high_level_commands', self.high_level_command_callback, 10
+        )
+
+        # Publishers for different planning levels
+        self.task_plan_pub = self.create_publisher(String, 'task_plans', 10)
+        self.action_seq_pub = self.create_publisher(String, 'action_sequences', 10)
+
+        # Initialize planning components
+        self.high_level_planner = HighLevelPlanner()
+        self.mid_level_planner = MidLevelPlanner()
+        self.low_level_controller = LowLevelController()
+
+        self.get_logger().info('GR00T-inspired planning node initialized')
+
+    def high_level_command_callback(self, msg):
+        """
+        Process high-level natural language command using hierarchical planning
+        """
+        command = msg.data
+        self.get_logger().info(f'Received high-level command: {command}')
+
+        try:
+            # High-level reasoning: decompose into subtasks
+            subtasks = self.high_level_planner.decompose_task(command)
+
+            # Mid-level planning: create detailed plans for each subtask
+            detailed_plans = []
+            for subtask in subtasks:
+                plan = self.mid_level_planner.create_subtask_plan(subtask)
+                detailed_plans.append(plan)
+
+            # Low-level execution: convert plans to executable actions
+            for plan in detailed_plans:
+                actions = self.low_level_controller.convert_to_actions(plan)
+
+                # Publish the action sequence
+                action_msg = String()
+                action_msg.data = json.dumps(actions)
+                self.action_seq_pub.publish(action_msg)
+
+                # Wait for completion before proceeding to next subtask
+                if not self.wait_for_action_completion():
+                    self.get_logger().warn('Action sequence not completed successfully')
+                    break
+
+        except Exception as e:
+            self.get_logger().error(f'Error in hierarchical planning: {e}')
+
+class HighLevelPlanner:
+    """
+    High-level planner that decomposes complex tasks into subtasks
+    """
+    def __init__(self):
+        # In practice, this could use an LLM for task decomposition
+        pass
+
+    def decompose_task(self, command):
+        """
+        Decompose a high-level command into subtasks
+        """
+        # Example decomposition for "Set the table"
+        if "set the table" in command.lower():
+            return [
+                {"task": "find table", "location": "dining room"},
+                {"task": "find plates", "location": "kitchen"},
+                {"task": "transport plates to table", "object": "plates", "destination": "table"},
+                {"task": "arrange plates", "arrangement": "setting pattern"}
+            ]
+        elif "clean the room" in command.lower():
+            return [
+                {"task": "identify objects to clean", "scan_area": "entire room"},
+                {"task": "categorize objects", "categories": ["trash", "resort", "keep"]},
+                {"task": "dispose of trash", "destination": "trash bin"},
+                {"task": "organize remaining objects", "organization": "designated areas"}
+            ]
+
+        # For other commands, use LLM-based decomposition
+        return self.llm_decompose_task(command)
+
+    def llm_decompose_task(self, command):
+        """
+        Use LLM to decompose complex tasks
+        """
+        # Implementation would call an LLM to decompose the task
+        # Similar to the LLM planning from Chapter 2
+        pass
+
+class MidLevelPlanner:
+    """
+    Mid-level planner that creates detailed plans for subtasks
+    """
+    def __init__(self):
+        pass
+
+    def create_subtask_plan(self, subtask):
+        """
+        Create a detailed plan for a subtask
+        """
+        plan = {
+            "subtask": subtask,
+            "required_objects": self.identify_required_objects(subtask),
+            "required_skills": self.identify_required_skills(subtask),
+            "execution_steps": self.create_execution_steps(subtask),
+            "success_criteria": self.define_success_criteria(subtask)
+        }
+        return plan
+
+    def identify_required_objects(self, subtask):
+        """
+        Identify objects needed for the subtask
+        """
+        # Implementation would analyze the subtask to identify required objects
+        return []
+
+    def identify_required_skills(self, subtask):
+        """
+        Identify skills needed for the subtask
+        """
+        # Implementation would map subtask to required robot capabilities
+        return []
+
+    def create_execution_steps(self, subtask):
+        """
+        Create detailed execution steps for the subtask
+        """
+        # Implementation would generate specific action sequences
+        return []
+
+    def define_success_criteria(self, subtask):
+        """
+        Define how to verify subtask completion
+        """
+        # Implementation would define success conditions
+        return {}
+
+class LowLevelController:
+    """
+    Low-level controller that converts plans to executable actions
+    """
+    def __init__(self):
+        pass
+
+    def convert_to_actions(self, plan):
+        """
+        Convert a detailed plan to executable ROS 2 actions
+        """
+        # Implementation would translate high-level plan into ROS 2 action goals
+        actions = []
+
+        # Example: Convert navigation tasks
+        if plan['subtask']['task'] == 'find table':
+            actions.append({
+                "action_type": "navigation",
+                "target_location": plan['subtask']['location'],
+                "search_behavior": "systematic_scan"
+            })
+
+        # Add more action conversions based on plan requirements
+        return actions`}
+/>
+
+## Isaac Sim Integration for VLA Training
+
+### Simulation-Based VLA Development
+
+<ConceptExplainer
+  concept="Isaac Sim Integration for VLA"
+  description="Isaac Sim provides a photorealistic simulation environment for training and testing Vision-Language-Action models, allowing safe and efficient development before deployment on physical robots."
+  examples={[
+    "Photorealistic rendering for domain randomization",
+    "Synthetic data generation for VLA training",
+    "Physics-accurate simulation for action validation",
+    "Integration with Isaac ROS for perception-action loops"
+  ]}
+  relatedConcepts={["Simulation-to-Real Transfer", "Synthetic Data", "Domain Randomization", "Isaac Ecosystem"]}
+>
+
+### Isaac Sim Benefits for VLA
+
+1. **Safe Training Environment**: No risk to physical robots or humans
+2. **Rapid Iteration**: Faster than physical robot trials
+3. **Controlled Conditions**: Repeatable experiments
+4. **Cost-Effective**: No hardware wear or real-world constraints
+
+</ConceptExplainer>
+
+<SimulationExample
+  simulationType="isaac_sim"
+  title="VLA Training in Isaac Sim"
+  description="Example of training a VLA model in Isaac Sim with various objects and scenarios"
+  code={`# Example Isaac Sim script for VLA data collection
+import omni
+from omni.isaac.core import World
+from omni.isaac.core.utils.stage import add_reference_to_stage
+from omni.isaac.core.utils.nucleus import get_assets_root_path
+from omni.isaac.sensor import Camera
+import numpy as np
+import torch
+
+class VLADataCollector:
+    def __init__(self):
+        self.world = World(stage_units_in_meters=1.0)
+
+        # Get Isaac Sim assets
+        assets_root_path = get_assets_root_path()
+
+        # Add a robot to the scene (example with Franka)
+        if assets_root_path is not None:
+            add_reference_to_stage(
+                usd_path=assets_root_path + "/Isaac/Robots/Franka/franka.usd",
+                prim_path="/World/Robot"
+            )
+
+        # Add a camera for vision input
+        self.camera = Camera(
+            prim_path="/World/Robot/base_link/Camera",
+            frequency=30,
+            resolution=(640, 480)
+        )
+
+        # Add various objects for training
+        self.add_training_objects()
+
+    def add_training_objects(self):
+        """
+        Add various objects to the simulation for VLA training
+        """
+        # Add objects with different shapes, colors, and materials
+        object_configs = [
+            {"name": "red_cup", "type": "cup", "color": [1, 0, 0], "position": [0.5, 0, 0.1]},
+            {"name": "blue_box", "type": "box", "color": [0, 0, 1], "position": [0.6, 0.1, 0.1]},
+            {"name": "green_sphere", "type": "sphere", "color": [0, 1, 0], "position": [0.4, -0.1, 0.1]}
+        ]
+
+        for obj_config in object_configs:
+            # Add object to simulation (implementation depends on specific object type)
+            pass
+
+    def collect_training_data(self, num_episodes=1000):
+        """
+        Collect training data for VLA model
+        """
+        training_data = []
+
+        for episode in range(num_episodes):
+            # Reset environment
+            self.world.reset()
+
+            # Generate random command
+            command = self.generate_random_command()
+
+            # Execute expert policy or demonstration
+            expert_actions = self.execute_expert_policy(command)
+
+            # Collect state (image + command) and action pairs
+            for state, action in expert_actions:
+                training_data.append({
+                    "image": state["image"],
+                    "command": command,
+                    "action": action
+                })
+
+        return training_data
+
+    def generate_random_command(self):
+        """
+        Generate random natural language commands for training
+        """
+        commands = [
+            "Pick up the red cup",
+            "Move the blue box to the left",
+            "Grasp the green sphere",
+            "Place object on the table"
+        ]
+        return np.random.choice(commands)
+
+    def execute_expert_policy(self, command):
+        """
+        Execute expert policy to generate training data
+        """
+        # Implementation would use kinematic solutions or scripted behaviors
+        # to generate expert demonstrations
+        pass`}
+/>
+
+## Multimodal Input Processing
+
+### Combining Vision and Language for Action
+
+<ConceptExplainer
+  concept="Multimodal Input Fusion"
+  description="Multimodal input fusion in VLA models combines visual and language information in a coordinated way to produce appropriate robot actions, requiring careful alignment and integration of different input modalities."
+  examples={[
+    "Attention mechanisms to focus on relevant visual regions based on language",
+    "Cross-modal embeddings that align visual and linguistic concepts",
+    "Late fusion of separately processed modalities",
+    "Early fusion of raw modalities for joint processing"
+  ]}
+  relatedConcepts={["Attention Mechanisms", "Cross-Modal Learning", "Fusion Strategies", "Embeddings"]}
+>
+
+### Fusion Strategies
+
+1. **Early Fusion**: Combine raw inputs before processing
+2. **Late Fusion**: Process modalities separately then combine
+3. **Intermediate Fusion**: Combine at multiple processing layers
+4. **Attention-Based Fusion**: Use attention to focus on relevant information
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Multimodal Fusion for VLA"
+  description="Implementation of multimodal fusion techniques for combining vision and language inputs"
+  code={`import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from transformers import CLIPVisionModel, CLIPTextModel, CLIPProcessor
+
+class MultimodalFusion(nn.Module):
+    def __init__(self, vision_dim=768, text_dim=512, fusion_dim=1024, action_dim=20):
+        super().__init__()
+
+        # Separate encoders for vision and text
+        self.vision_encoder = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
+        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32")
+
+        # Fusion layer to combine modalities
+        self.fusion_layer = nn.Sequential(
+            nn.Linear(vision_dim + text_dim, fusion_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(fusion_dim, fusion_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1)
+        )
+
+        # Action prediction head
+        self.action_head = nn.Linear(fusion_dim, action_dim)
+
+        # Cross-attention mechanism
+        self.cross_attention = nn.MultiheadAttention(
+            embed_dim=fusion_dim,
+            num_heads=8,
+            dropout=0.1,
+            batch_first=True
+        )
+
+    def forward(self, images, text_tokens):
+        """
+        Forward pass through the multimodal fusion network
+        """
+        # Encode visual features
+        vision_outputs = self.vision_encoder(pixel_values=images)
+        vision_features = vision_outputs.last_hidden_state.mean(dim=1)  # Global average pooling
+
+        # Encode text features
+        text_outputs = self.text_encoder(input_ids=text_tokens)
+        text_features = text_outputs.last_hidden_state.mean(dim=1)  # Global average pooling
+
+        # Concatenate vision and text features
+        combined_features = torch.cat([vision_features, text_features], dim=-1)
+
+        # Fuse the features
+        fused_features = self.fusion_layer(combined_features)
+
+        # Apply cross-attention between modalities
+        # Reshape for attention: (batch, seq_len, features)
+        fused_reshaped = fused_features.unsqueeze(1)  # Add sequence dimension
+        attended_features, attention_weights = self.cross_attention(
+            fused_reshaped, fused_reshaped, fused_reshaped
+        )
+        attended_features = attended_features.squeeze(1)  # Remove sequence dimension
+
+        # Predict actions
+        actions = self.action_head(attended_features)
+
+        return actions, attention_weights
+
+class VLAPreprocessor:
+    """
+    Preprocess multimodal inputs for VLA model
+    """
+    def __init__(self):
+        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+    def preprocess_inputs(self, image, text_command):
+        """
+        Preprocess image and text for VLA model
+        """
+        # Process image
+        inputs = self.clip_processor(
+            text=[text_command],
+            images=image,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=77
+        )
+
+        return inputs['pixel_values'], inputs['input_ids']
+
+class VLAInferenceNode(Node):
+    def __init__(self):
+        super().__init__('vla_inference_node')
+
+        # Initialize the multimodal fusion model
+        self.model = MultimodalFusion()
+        self.model.eval()  # Set to evaluation mode
+
+        # Initialize preprocessor
+        self.preprocessor = VLAPreprocessor()
+
+        # ROS 2 interfaces
+        self.image_sub = self.create_subscription(Image, 'camera/image_raw', self.image_callback, 10)
+        self.command_sub = self.create_subscription(String, 'vla_commands', self.command_callback, 10)
+        self.action_pub = self.create_publisher(JointState, 'vla_actions', 10)
+
+        # Store inputs for processing
+        self.latest_image = None
+        self.latest_command = None
+        self.processing_lock = threading.Lock()
+
+    def image_callback(self, msg):
+        """
+        Process incoming image and run VLA inference if command is available
+        """
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8')
+
+        with self.processing_lock:
+            self.latest_image = cv_image
+
+            # If command is available, run inference
+            if self.latest_command is not None:
+                self.run_vla_inference()
+
+    def command_callback(self, msg):
+        """
+        Process incoming command and run VLA inference if image is available
+        """
+        with self.processing_lock:
+            self.latest_command = msg.data
+
+            # If image is available, run inference
+            if self.latest_image is not None:
+                self.run_vla_inference()
+
+    def run_vla_inference(self):
+        """
+        Run VLA inference with latest image and command
+        """
+        if self.latest_image is None or self.latest_command is None:
+            return
+
+        try:
+            # Preprocess inputs
+            pixel_values, input_ids = self.preprocessor.preprocess_inputs(
+                self.latest_image,
+                self.latest_command
+            )
+
+            # Run inference
+            with torch.no_grad():
+                actions, attention_weights = self.model(pixel_values, input_ids)
+
+            # Convert actions to ROS message
+            action_msg = self.convert_to_ros_action(actions)
+            self.action_pub.publish(action_msg)
+
+            # Clear processed inputs
+            with self.processing_lock:
+                self.latest_image = None
+                self.latest_command = None
+
+        except Exception as e:
+            self.get_logger().error(f'VLA inference error: {e}')
+
+    def convert_to_ros_action(self, actions):
+        """
+        Convert model output to ROS action message
+        """
+        # Convert tensor to numpy and then to ROS message
+        action_array = actions.cpu().numpy().flatten()
+
+        joint_msg = JointState()
+        joint_msg.position = action_array[:7].tolist()  # Assuming 7 joint positions
+        joint_msg.velocity = action_array[7:14].tolist()  # Next 7 as velocities
+        joint_msg.effort = action_array[14:].tolist()  # Remaining as efforts
+
+        return joint_msg`}
+/>
+
+## Object Identification and Manipulation Planning
+
+### Direct Perception-Action Mapping
+
+<ConceptExplainer
+  concept="Direct Perception-Action Mapping"
+  description="Direct perception-action mapping in VLA models eliminates the traditional pipeline of perception → planning → action by learning direct mappings from sensory inputs to motor outputs, often resulting in more robust and adaptive behavior."
+  examples={[
+    "Grasping affordances directly from visual input",
+    "Navigation directly from scene understanding",
+    "Manipulation planning from visual-language input",
+    "Reactive behaviors from sensor fusion"
+  ]}
+  relatedConcepts={["End-to-End Learning", "Imitation Learning", "Reinforcement Learning", "Affordance Learning"]}
+>
+
+### Key Benefits
+
+1. **Reduced Latency**: No intermediate processing steps
+2. **Robustness**: Learn to handle sensor noise and uncertainties
+3. **Adaptability**: Learn complex sensorimotor relationships
+4. **Generalization**: Transfer across similar scenarios
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Object Identification and Manipulation with VLA"
+  description="Implementation of direct object identification and manipulation planning using VLA models"
+  code={`class VLAObjectManipulationNode(Node):
+    def __init__(self):
+        super().__init__('vla_object_manipulation_node')
+
+        # Initialize VLA model for manipulation
+        self.vla_model = self.initialize_manipulation_model()
+
+        # ROS interfaces
+        self.image_sub = self.create_subscription(Image, 'camera/image_raw', self.image_callback, 10)
+        self.point_cloud_sub = self.create_subscription(PointCloud2, 'camera/depth/points', self.point_cloud_callback, 10)
+        self.command_sub = self.create_subscription(String, 'manipulation_commands', self.command_callback, 10)
+        self.manipulation_pub = self.create_publisher(JointTrajectory, 'manipulation_trajectory', 10)
+
+        # State variables
+        self.latest_image = None
+        self.latest_point_cloud = None
+        self.latest_command = None
+        self.scene_understanding = None
+
+        self.get_logger().info('VLA Object Manipulation node initialized')
+
+    def initialize_manipulation_model(self):
+        """
+        Initialize a VLA model specialized for object manipulation
+        """
+        # This would typically load a pre-trained model or initialize from scratch
+        # For this example, we'll create a simplified model
+        return ManipulationVLA(
+            vision_dim=768,
+            text_dim=512,
+            action_dim=14,  # 7 joint positions + 7 velocities for a 7-DOF arm
+            proprioception_dim=10  # Joint angles, velocities, gripper state, etc.
+        )
+
+    def image_callback(self, msg):
+        """
+        Process camera image for object identification
+        """
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8')
+        self.latest_image = cv_image
+
+        # Update scene understanding if we have all required inputs
+        self.update_scene_understanding()
+
+    def point_cloud_callback(self, msg):
+        """
+        Process point cloud for 3D object information
+        """
+        # Convert PointCloud2 to numpy array
+        point_cloud = self.point_cloud_to_numpy(msg)
+        self.latest_point_cloud = point_cloud
+
+        # Update scene understanding
+        self.update_scene_understanding()
+
+    def command_callback(self, msg):
+        """
+        Process manipulation command
+        """
+        self.latest_command = msg.data
+
+        # If we have visual input, run VLA inference
+        if self.latest_image is not None:
+            self.run_manipulation_inference()
+
+    def update_scene_understanding(self):
+        """
+        Update internal representation of the scene with detected objects
+        """
+        if self.latest_image is None or self.latest_point_cloud is None:
+            return
+
+        try:
+            # Run object detection and 3D localization
+            detected_objects = self.detect_objects_3d(
+                self.latest_image,
+                self.latest_point_cloud
+            )
+
+            # Update scene understanding
+            self.scene_understanding = {
+                'objects': detected_objects,
+                'robot_state': self.get_robot_state(),
+                'workspace_bounds': self.get_workspace_bounds()
+            }
+
+        except Exception as e:
+            self.get_logger().error(f'Error in scene understanding: {e}')
+
+    def detect_objects_3d(self, image, point_cloud):
+        """
+        Detect and localize objects in 3D space
+        """
+        # This would typically use a 3D object detection model
+        # For this example, we'll simulate object detection
+
+        # Convert image to tensor for processing
+        image_tensor = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
+        image_tensor = image_tensor.unsqueeze(0)  # Add batch dimension
+
+        # Run object detection (simulated)
+        # In practice, this would call a 2D object detector and then use point cloud for 3D localization
+        detected_objects = [
+            {
+                'name': 'red_cup',
+                'class': 'cup',
+                'position': [0.5, 0.1, 0.2],  # x, y, z in robot frame
+                'orientation': [0, 0, 0, 1],  # quaternion
+                'bbox_2d': [100, 100, 200, 200],  # x_min, y_min, x_max, y_max
+                'confidence': 0.95
+            },
+            {
+                'name': 'blue_box',
+                'class': 'box',
+                'position': [0.6, -0.2, 0.15],
+                'orientation': [0, 0, 0, 1],
+                'bbox_2d': [300, 150, 400, 250],
+                'confidence': 0.89
+            }
+        ]
+
+        return detected_objects
+
+    def run_manipulation_inference(self):
+        """
+        Run VLA inference for manipulation task
+        """
+        if self.latest_image is None or self.latest_command is None:
+            return
+
+        try:
+            # Prepare inputs for VLA model
+            image_tensor = self.preprocess_image(self.latest_image)
+            text_tokens = self.preprocess_text(self.latest_command)
+            proprioception = self.get_robot_proprioception()
+
+            # Run VLA model inference
+            with torch.no_grad():
+                trajectory = self.vla_model(
+                    image_tensor,
+                    text_tokens,
+                    proprioception
+                )
+
+            # Convert to ROS trajectory message
+            trajectory_msg = self.trajectory_to_ros(trajectory)
+            self.manipulation_pub.publish(trajectory_msg)
+
+        except Exception as e:
+            self.get_logger().error(f'Error in manipulation inference: {e}')
+
+    def preprocess_image(self, image):
+        """
+        Preprocess image for VLA model
+        """
+        # Resize and normalize image
+        resized = cv2.resize(image, (224, 224))
+        normalized = resized.astype(np.float32) / 255.0
+        tensor_image = torch.from_numpy(normalized).permute(2, 0, 1).unsqueeze(0)
+        return tensor_image
+
+    def preprocess_text(self, text_command):
+        """
+        Preprocess text command for VLA model
+        """
+        # Tokenize text (in practice, use appropriate tokenizer)
+        # For this example, we'll use a simple approach
+        tokens = torch.randint(0, 1000, (1, 77))  # Simulated tokens
+        return tokens
+
+    def get_robot_proprioception(self):
+        """
+        Get current robot state (joint angles, velocities, etc.)
+        """
+        # In practice, this would get real robot state
+        # For simulation, return dummy values
+        proprioception = torch.randn(1, 10)  # 10-dimensional proprioceptive state
+        return proprioception
+
+    def trajectory_to_ros(self, trajectory):
+        """
+        Convert model output to ROS JointTrajectory message
+        """
+        traj_msg = JointTrajectory()
+
+        # Extract joint positions and timing from trajectory
+        # This is a simplified example - real implementation would depend on model output format
+        num_points = trajectory.shape[0] if len(trajectory.shape) > 1 else 1
+
+        for i in range(min(num_points, 10)):  # Limit to 10 points for example
+            point = JointTrajectoryPoint()
+
+            # Set joint positions (assuming 7 joints)
+            if len(trajectory.shape) > 1:
+                positions = trajectory[i, :7].tolist()
+            else:
+                positions = trajectory[:7].tolist()
+
+            point.positions = positions
+            point.velocities = [0.0] * 7  # For simplicity
+            point.accelerations = [0.0] * 7  # For simplicity
+
+            # Set timing
+            point.time_from_start.sec = i
+            point.time_from_start.nanosec = 0
+
+            traj_msg.points.append(point)
+
+        # Set joint names (these would match your robot's joint names)
+        traj_msg.joint_names = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6', 'joint7']
+
+        return traj_msg
+
+class ManipulationVLA(nn.Module):
+    """
+    VLA model specialized for manipulation tasks
+    """
+    def __init__(self, vision_dim, text_dim, action_dim, proprioception_dim):
+        super().__init__()
+
+        # Vision encoder
+        self.vision_encoder = nn.Sequential(
+            nn.Conv2d(3, 32, 8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(64 * 7 * 7, vision_dim),  # Assuming final feature map size
+            nn.ReLU()
+        )
+
+        # Text encoder (simplified)
+        self.text_encoder = nn.Sequential(
+            nn.Linear(77, text_dim),  # Assuming 77 tokens
+            nn.ReLU(),
+            nn.Linear(text_dim, text_dim),
+            nn.ReLU()
+        )
+
+        # Proprioception encoder
+        self.proprio_encoder = nn.Sequential(
+            nn.Linear(proprioception_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU()
+        )
+
+        # Fusion network
+        self.fusion = nn.Sequential(
+            nn.Linear(vision_dim + text_dim + 64, 512),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(256, action_dim)
+        )
+
+    def forward(self, image, text, proprioception):
+        """
+        Forward pass through the manipulation VLA
+        """
+        # Encode different modalities
+        vision_features = self.vision_encoder(image)
+        text_features = self.text_encoder(text)
+        proprio_features = self.proprio_encoder(proprioception)
+
+        # Concatenate all features
+        combined_features = torch.cat([
+            vision_features,
+            text_features,
+            proprio_features
+        ], dim=-1)
+
+        # Generate actions
+        actions = self.fusion(combined_features)
+
+        return actions`}
+/>
+
+## Bipedal Navigation with VLA Models
+
+### Humanoid-Specific VLA Applications
+
+<ConceptExplainer
+  concept="Bipedal Navigation with VLA"
+  description="Bipedal navigation with VLA models involves direct mapping from visual and language inputs to bipedal locomotion patterns, considering the unique constraints and dynamics of legged robots."
+  examples={[
+    "Stair climbing based on visual perception and command",
+    "Balance maintenance during navigation",
+    "Footstep planning from scene understanding",
+    "Gait adaptation based on terrain"
+  ]}
+  relatedConcepts={["Bipedal Locomotion", "Footstep Planning", "Balance Control", "Legged Robots"]}
+>
+
+### Bipedal-Specific Considerations
+
+1. **Balance Constraints**: Maintain center of mass within support polygon
+2. **Footstep Planning**: Plan where to place feet for stable locomotion
+3. **Gait Patterns**: Use appropriate walking patterns (e.g., walk, trot, pace)
+4. **Terrain Adaptation**: Adjust gait based on surface properties
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Bipedal Navigation with VLA"
+  description="Implementation of VLA-based navigation for bipedal humanoid robots"
+  code={`class VLABipedalNavigationNode(Node):
+    def __init__(self):
+        super().__init__('vla_bipedal_navigation_node')
+
+        # Initialize VLA model for bipedal navigation
+        self.vla_model = self.initialize_bipedal_model()
+
+        # ROS interfaces for navigation
+        self.image_sub = self.create_subscription(Image, 'camera/image_raw', self.image_callback, 10)
+        self.depth_sub = self.create_subscription(Image, 'camera/depth/image_raw', self.depth_callback, 10)
+        self.imu_sub = self.create_subscription(Imu, 'imu/data', self.imu_callback, 10)
+        self.command_sub = self.create_subscription(String, 'navigation_commands', self.command_callback, 10)
+        self.footstep_pub = self.create_publisher(JointTrajectory, 'footstep_trajectory', 10)
+        self.balance_cmd_pub = self.create_publisher(Float64MultiArray, 'balance_commands', 10)
+
+        # State variables
+        self.latest_image = None
+        self.latest_depth = None
+        self.latest_imu = None
+        self.latest_command = None
+        self.robot_state = None
+
+        self.get_logger().info('VLA Bipedal Navigation node initialized')
+
+    def initialize_bipedal_model(self):
+        """
+        Initialize VLA model specialized for bipedal navigation
+        """
+        return BipedalVLAModel(
+            vision_dim=512,
+            depth_dim=256,
+            text_dim=256,
+            imu_dim=12,  # IMU data: orientation (4) + angular velocity (3) + linear acceleration (3)
+            action_dim=20  # Combined footstep and balance actions
+        )
+
+    def image_callback(self, msg):
+        """
+        Process camera image for scene understanding
+        """
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8')
+        self.latest_image = cv_image
+
+    def depth_callback(self, msg):
+        """
+        Process depth image for terrain analysis
+        """
+        cv_depth = self.bridge.imgmsg_to_cv2(msg, desired_encoding='32FC1')
+        self.latest_depth = cv_depth
+
+    def imu_callback(self, msg):
+        """
+        Process IMU data for balance information
+        """
+        self.latest_imu = msg
+
+    def command_callback(self, msg):
+        """
+        Process navigation command and run VLA inference
+        """
+        self.latest_command = msg.data
+
+        # Run inference if all required inputs are available
+        if all([self.latest_image, self.latest_depth, self.latest_imu]):
+            self.run_navigation_inference()
+
+    def run_navigation_inference(self):
+        """
+        Run VLA inference for bipedal navigation
+        """
+        try:
+            # Prepare inputs
+            image_tensor = self.preprocess_image(self.latest_image)
+            depth_tensor = self.preprocess_depth(self.latest_depth)
+            text_tensor = self.preprocess_text(self.latest_command)
+            imu_tensor = self.preprocess_imu(self.latest_imu)
+
+            # Run VLA model
+            with torch.no_grad():
+                navigation_actions = self.vla_model(
+                    image_tensor,
+                    depth_tensor,
+                    text_tensor,
+                    imu_tensor
+                )
+
+            # Extract footstep and balance commands
+            footstep_actions = navigation_actions[:, :14]  # First 14 dims for footsteps
+            balance_actions = navigation_actions[:, 14:]   # Remaining for balance
+
+            # Publish commands
+            self.publish_footstep_commands(footstep_actions)
+            self.publish_balance_commands(balance_actions)
+
+        except Exception as e:
+            self.get_logger().error(f'Error in navigation inference: {e}')
+
+    def preprocess_image(self, image):
+        """
+        Preprocess image for navigation VLA
+        """
+        # Resize and normalize
+        resized = cv2.resize(image, (224, 224))
+        normalized = resized.astype(np.float32) / 255.0
+        tensor_image = torch.from_numpy(normalized).permute(2, 0, 1).unsqueeze(0)
+        return tensor_image
+
+    def preprocess_depth(self, depth_image):
+        """
+        Preprocess depth image for terrain analysis
+        """
+        # Resize depth image
+        resized = cv2.resize(depth_image, (224, 224))
+
+        # Normalize depth values (assuming depth in meters)
+        # Replace invalid values with max depth
+        resized[np.isnan(resized)] = 10.0  # 10m as default max range
+        resized[resized > 10.0] = 10.0
+
+        # Normalize to [0, 1]
+        normalized = resized / 10.0
+
+        tensor_depth = torch.from_numpy(normalized).unsqueeze(0).unsqueeze(0)  # Add channel and batch dims
+        return tensor_depth
+
+    def preprocess_text(self, text_command):
+        """
+        Preprocess navigation text command
+        """
+        # In practice, use appropriate tokenizer
+        # For this example, simulate tokenization
+        tokens = torch.randint(0, 1000, (1, 77))  # Simulated tokens
+        return tokens
+
+    def preprocess_imu(self, imu_msg):
+        """
+        Preprocess IMU data for balance information
+        """
+        # Extract orientation (quaternion)
+        orientation = torch.tensor([
+            imu_msg.orientation.x,
+            imu_msg.orientation.y,
+            imu_msg.orientation.z,
+            imu_msg.orientation.w
+        ])
+
+        # Extract angular velocity
+        angular_vel = torch.tensor([
+            imu_msg.angular_velocity.x,
+            imu_msg.angular_velocity.y,
+            imu_msg.angular_velocity.z
+        ])
+
+        # Extract linear acceleration
+        linear_acc = torch.tensor([
+            imu_msg.linear_acceleration.x,
+            imu_msg.linear_acceleration.y,
+            imu_msg.linear_acceleration.z
+        ])
+
+        # Combine all IMU data
+        imu_tensor = torch.cat([orientation, angular_vel, linear_acc]).unsqueeze(0)
+        return imu_tensor
+
+    def publish_footstep_commands(self, footstep_actions):
+        """
+        Publish footstep trajectory commands
+        """
+        # Convert footstep actions to trajectory message
+        traj_msg = JointTrajectory()
+
+        # Define joint names for feet (example for a humanoid)
+        traj_msg.joint_names = [
+            'left_foot_roll', 'left_foot_pitch', 'left_foot_yaw',
+            'right_foot_roll', 'right_foot_pitch', 'right_foot_yaw',
+            'left_hip_roll', 'left_hip_pitch', 'left_hip_yaw',
+            'right_hip_roll', 'right_hip_pitch', 'right_hip_yaw'
+        ]
+
+        # Create trajectory points from actions
+        for i in range(footstep_actions.shape[0]):
+            point = JointTrajectoryPoint()
+
+            # Extract joint positions from actions
+            positions = footstep_actions[i, :len(traj_msg.joint_names)].tolist()
+            point.positions = positions
+            point.velocities = [0.0] * len(positions)  # Simplified
+            point.accelerations = [0.0] * len(positions)  # Simplified
+
+            # Timing
+            point.time_from_start.sec = i
+            point.time_from_start.nanosec = 0
+
+            traj_msg.points.append(point)
+
+        self.footstep_pub.publish(traj_msg)
+
+    def publish_balance_commands(self, balance_actions):
+        """
+        Publish balance control commands
+        """
+        balance_msg = Float64MultiArray()
+
+        # Convert balance actions to appropriate format
+        # These might control COM position, ZMP, or other balance parameters
+        balance_msg.data = balance_actions[0, :].tolist()
+
+        self.balance_cmd_pub.publish(balance_msg)
+
+class BipedalVLAModel(nn.Module):
+    """
+    VLA model specialized for bipedal navigation
+    """
+    def __init__(self, vision_dim, depth_dim, text_dim, imu_dim, action_dim):
+        super().__init__()
+
+        # Vision encoder
+        self.vision_encoder = nn.Sequential(
+            nn.Conv2d(3, 32, 8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(64 * 7 * 7, vision_dim),
+            nn.ReLU()
+        )
+
+        # Depth encoder for terrain analysis
+        self.depth_encoder = nn.Sequential(
+            nn.Conv2d(1, 16, 8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(16, 32, 4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(32 * 7 * 7, depth_dim),
+            nn.ReLU()
+        )
+
+        # Text encoder for navigation commands
+        self.text_encoder = nn.Sequential(
+            nn.Linear(77, text_dim),
+            nn.ReLU(),
+            nn.Linear(text_dim, text_dim),
+            nn.ReLU()
+        )
+
+        # IMU encoder for balance information
+        self.imu_encoder = nn.Sequential(
+            nn.Linear(imu_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU()
+        )
+
+        # Fusion network for bipedal navigation
+        self.fusion = nn.Sequential(
+            nn.Linear(vision_dim + depth_dim + text_dim + 64, 512),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, action_dim)
+        )
+
+    def forward(self, image, depth, text, imu):
+        """
+        Forward pass for bipedal navigation VLA
+        """
+        # Encode different modalities
+        vision_features = self.vision_encoder(image)
+        depth_features = self.depth_encoder(depth)
+        text_features = self.text_encoder(text)
+        imu_features = self.imu_encoder(imu)
+
+        # Combine all features
+        combined_features = torch.cat([
+            vision_features,
+            depth_features,
+            text_features,
+            imu_features
+        ], dim=-1)
+
+        # Generate navigation actions
+        actions = self.fusion(combined_features)
+
+        return actions`}
+/>
+
+## Voice-to-VLA Pipeline Integration
+
+### Complete End-to-End System
+
+<ConceptExplainer
+  concept="Voice-to-VLA Pipeline"
+  description="The complete voice-to-VLA pipeline integrates speech recognition, language understanding, vision processing, and action generation in a unified system that can respond to natural language commands with appropriate robot behaviors."
+  examples={[
+    "User says 'Go to the kitchen and bring me the red cup'",
+    "System processes speech → understands intent → perceives environment → generates actions",
+    "Direct mapping from voice command to robot behavior",
+    "Closed-loop system with perception and feedback"
+  ]}
+  relatedConcepts={["End-to-End Systems", "Multimodal Integration", "Human-Robot Interaction", "Closed-Loop Control"]}
+>
+
+### Pipeline Components
+
+1. **Speech Recognition**: Convert voice to text
+2. **Language Understanding**: Interpret command intent
+3. **Perception**: Understand current environment
+4. **VLA Inference**: Generate appropriate actions
+5. **Execution**: Execute actions on robot
+6. **Feedback**: Monitor execution and adapt
+
+</ConceptExplainer>
+
+<ArchitectureDiagram
+  variant="workflow"
+  title="Complete Voice-to-VLA Pipeline"
+  description="Shows the complete flow from voice command to robot action execution"
+  highlightElements={["speech_rec", "language_understanding", "perception", "vla_inference", "execution"]}
+/>
+
+<CodeExample
+  language="python"
+  title="Complete Voice-to-VLA Pipeline"
+  description="Integration of all components for a complete voice-controlled VLA system"
+  code={`class VoiceToVLAPipelineNode(Node):
+    def __init__(self):
+        super().__init__('voice_to_vla_pipeline')
+
+        # Initialize all pipeline components
+        self.speech_recognizer = self.initialize_speech_recognition()
+        self.vla_model = self.initialize_vla_model()
+        self.perception_system = self.initialize_perception()
+
+        # ROS interfaces
+        self.audio_sub = self.create_subscription(AudioData, 'audio', self.audio_callback, 10)
+        self.image_sub = self.create_subscription(Image, 'camera/image_raw', self.image_callback, 10)
+        self.command_pub = self.create_publisher(JointTrajectory, 'robot_commands', 10)
+        self.status_pub = self.create_publisher(String, 'pipeline_status', 10)
+
+        # Pipeline state
+        self.latest_audio = None
+        self.latest_image = None
+        self.transcribed_text = None
+        self.scene_context = None
+
+        self.pipeline_active = True
+
+        self.get_logger().info('Voice-to-VLA pipeline initialized')
+
+    def initialize_speech_recognition(self):
+        """
+        Initialize speech recognition component
+        """
+        # This could be Whisper, Vosk, or other ASR system
+        # For this example, we'll simulate a recognizer
+        return SpeechRecognizer()
+
+    def initialize_vla_model(self):
+        """
+        Initialize VLA model for action generation
+        """
+        # Initialize the combined VLA model
+        return CombinedVLAModel(
+            vision_dim=512,
+            text_dim=256,
+            action_dim=20
+        )
+
+    def initialize_perception(self):
+        """
+        Initialize perception system
+        """
+        # This would include object detection, scene understanding, etc.
+        return PerceptionSystem()
+
+    def audio_callback(self, msg):
+        """
+        Process audio input and trigger speech recognition
+        """
+        self.latest_audio = msg
+
+        # Transcribe audio to text
+        self.transcribed_text = self.speech_recognizer.transcribe(msg)
+
+        # If we have scene context, run full pipeline
+        if self.scene_context is not None:
+            self.execute_voice_to_vla_pipeline()
+
+    def image_callback(self, msg):
+        """
+        Process image for scene understanding
+        """
+        self.latest_image = msg
+
+        # Update scene context
+        self.scene_context = self.perception_system.understand_scene(msg)
+
+    def execute_voice_to_vla_pipeline(self):
+        """
+        Execute the complete voice-to-VLA pipeline
+        """
+        if not self.transcribed_text or not self.scene_context:
+            return
+
+        try:
+            # Publish status
+            status_msg = String()
+            status_msg.data = f"Processing command: {self.transcribed_text}"
+            self.status_pub.publish(status_msg)
+
+            # Prepare inputs for VLA model
+            image_tensor = self.preprocess_image(self.latest_image)
+            text_tensor = self.preprocess_text(self.transcribed_text)
+
+            # Run VLA inference
+            with torch.no_grad():
+                actions = self.vla_model(image_tensor, text_tensor)
+
+            # Convert and publish actions
+            action_msg = self.convert_to_ros_action(actions)
+            self.command_pub.publish(action_msg)
+
+            # Publish completion status
+            status_msg.data = "Command executed successfully"
+            self.status_pub.publish(status_msg)
+
+            # Clear processed inputs
+            self.transcribed_text = None
+
+        except Exception as e:
+            self.get_logger().error(f'Error in voice-to-VLA pipeline: {e}')
+            status_msg = String()
+            status_msg.data = f"Error: {str(e)}"
+            self.status_pub.publish(status_msg)
+
+    def preprocess_image(self, image_msg):
+        """
+        Preprocess image for VLA model
+        """
+        cv_image = self.bridge.imgmsg_to_cv2(image_msg, desired_encoding='rgb8')
+        resized = cv2.resize(cv_image, (224, 224))
+        normalized = resized.astype(np.float32) / 255.0
+        tensor_image = torch.from_numpy(normalized).permute(2, 0, 1).unsqueeze(0)
+        return tensor_image
+
+    def preprocess_text(self, text_command):
+        """
+        Preprocess text command for VLA model
+        """
+        # In practice, use appropriate tokenizer
+        # For this example, simulate tokenization
+        tokens = torch.randint(0, 1000, (1, 77))  # Simulated tokens
+        return tokens
+
+    def convert_to_ros_action(self, actions):
+        """
+        Convert VLA output to ROS action message
+        """
+        # Convert tensor to ROS trajectory message
+        traj_msg = JointTrajectory()
+
+        # Create trajectory point from actions
+        point = JointTrajectoryPoint()
+        action_array = actions.cpu().numpy().flatten()
+
+        # Assuming 7 joint positions (example for a manipulator)
+        joint_positions = action_array[:7].tolist()
+        point.positions = joint_positions
+        point.velocities = [0.0] * 7  # Simplified
+        point.accelerations = [0.0] * 7  # Simplified
+        point.time_from_start.sec = 1  # Simplified timing
+
+        traj_msg.points.append(point)
+        traj_msg.joint_names = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6', 'joint7']
+
+        return traj_msg
+
+class SpeechRecognizer:
+    """
+    Simulated speech recognition component
+    """
+    def transcribe(self, audio_msg):
+        """
+        Transcribe audio to text (simulated)
+        """
+        # In practice, this would use Whisper, Vosk, or similar
+        # For simulation, return a fixed command or use a real ASR system
+        return "Move forward slowly"
+
+class PerceptionSystem:
+    """
+    Simulated perception system
+    """
+    def understand_scene(self, image_msg):
+        """
+        Understand the scene from image (simulated)
+        """
+        # In practice, this would run object detection, scene segmentation, etc.
+        return {"objects": [], "layout": "unknown", "obstacles": []}
+
+class CombinedVLAModel(nn.Module):
+    """
+    Combined VLA model that takes both vision and language inputs
+    """
+    def __init__(self, vision_dim, text_dim, action_dim):
+        super().__init__()
+
+        # Vision encoder
+        self.vision_encoder = nn.Sequential(
+            nn.Conv2d(3, 32, 8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 4, stride=2),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(64 * 7 * 7, vision_dim),
+            nn.ReLU()
+        )
+
+        # Text encoder
+        self.text_encoder = nn.Sequential(
+            nn.Linear(77, text_dim),
+            nn.ReLU(),
+            nn.Linear(text_dim, text_dim),
+            nn.ReLU()
+        )
+
+        # Fusion and action generation
+        self.fusion = nn.Sequential(
+            nn.Linear(vision_dim + text_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, action_dim)
+        )
+
+    def forward(self, image, text):
+        """
+        Forward pass combining vision and language
+        """
+        vision_features = self.vision_encoder(image)
+        text_features = self.text_encoder(text)
+
+        combined_features = torch.cat([vision_features, text_features], dim=-1)
+        actions = self.fusion(combined_features)
+
+        return actions`}
+/>
+
+## Performance Optimization for Real-Time VLA
+
+### Optimizing VLA Models for Robotics
+
+<ConceptExplainer
+  concept="VLA Performance Optimization"
+  description="VLA performance optimization involves techniques to ensure real-time inference while maintaining accuracy, including model quantization, hardware acceleration, and efficient architectures."
+  examples={[
+    "Model quantization to reduce computational requirements",
+    "Hardware acceleration using GPUs or TPUs",
+    "Efficient architectures like MobileVLA",
+    "Caching and prediction for common scenarios"
+  ]}
+  relatedConcepts={["Model Compression", "Hardware Acceleration", "Real-Time Systems", "Edge AI"]}
+>
+
+### Optimization Strategies
+
+1. **Model Quantization**: Reduce precision for faster inference
+2. **Pruning**: Remove unnecessary connections
+3. **Knowledge Distillation**: Create smaller, faster student models
+4. **Hardware Acceleration**: Leverage GPUs, TPUs, or specialized AI chips
+
+</ConceptExplainer>
+
+## Troubleshooting and Best Practices
+
+### Common Issues and Solutions
+
+- **High Latency**: Use model quantization or smaller architectures
+- **Memory Constraints**: Implement model offloading or streaming
+- **Inconsistent Outputs**: Add confidence scoring and validation layers
+- **Sim-to-Real Gap**: Use domain randomization and fine-tuning
+- **Safety Concerns**: Implement safety validation before action execution
+
+## Summary
+
+This chapter covered Vision-Language-Action models for end-to-end humanoid control. You learned how to:
+
+- Understand and implement OpenVLA models for direct vision-to-action mapping
+- Integrate NVIDIA GR00T concepts for hierarchical reasoning
+- Deploy VLA models in Isaac Sim for simulation-based development
+- Combine vision and language inputs using multimodal fusion techniques
+- Implement object identification and manipulation planning with VLA models
+- Create bipedal navigation systems using VLA approaches
+- Design complete voice-to-VLA pipelines for natural human-robot interaction
+- Optimize VLA models for real-time robotics applications
+
+This completes the core VLA content for Module 4. The next section will provide practical examples implementing these concepts.
+
+</ChapterLayout>

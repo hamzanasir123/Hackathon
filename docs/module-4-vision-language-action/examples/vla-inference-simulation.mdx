@@ -1,0 +1,1246 @@
+---
+sidebar_label: "Example 4: VLA Inference in Simulation"
+sidebar_position: 4
+title: "Example 4: VLA Inference in Simulation"
+description: "Deploying VLA model with real-time inference, connecting to Isaac Sim for testing, and executing end-to-end voice-to-action pipeline"
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+
+<ChapterLayout
+  title="Example 4: VLA Inference in Simulation"
+  description="Deploying VLA model with real-time inference, connecting to Isaac Sim for testing, and executing end-to-end voice-to-action pipeline"
+  previous={{path: '/docs/module-4-vision-language-action/examples/perception-integrated-planning', title: 'Example 3: Perception-Integrated Planning'}}
+  next={{path: '/docs/module-4-vision-language-action', title: 'Module 4 Home'}}
+>
+
+## Learning Objectives
+
+After completing this example, you will be able to:
+
+- Deploy Vision-Language-Action (VLA) models for real-time inference
+- Integrate VLA models with Isaac Sim for simulation-based testing
+- Create an end-to-end voice-to-action pipeline combining all previous components
+- Optimize VLA inference for real-time performance
+- Evaluate VLA performance in simulated environments
+
+## Introduction
+
+This final example integrates all previous components into a complete end-to-end system. It deploys a VLA model for real-time inference, connects it to Isaac Sim for testing, and demonstrates the complete voice-to-action pipeline from natural language commands to robot actions in simulation.
+
+## VLA Model Deployment Architecture
+
+<ConceptExplainer
+  concept="Vision-Language-Action (VLA) Models"
+  description="VLA models are neural networks that directly map visual and language inputs to robot actions in an end-to-end fashion, eliminating the need for separate perception, planning, and control modules."
+  examples={[
+    "OpenVLA: Open Vision-Language-Action model from Stanford",
+    "GR00T: Grounded Reasoning for Robotics from NVIDIA",
+    "RT-1/X/2: Robot Transformer models from Google DeepMind",
+    "EmbodiedGPT: Vision-language model for embodied tasks"
+  ]}
+  relatedConcepts={["Multimodal Learning", "End-to-End Learning", "Embodied AI", "Robot Learning"]}
+>
+
+### VLA Model Characteristics
+
+1. **Multimodal Integration**: Process vision and language inputs simultaneously
+2. **End-to-End Learning**: Learn direct mapping from inputs to actions
+3. **Generalization**: Transfer learning across different robots and tasks
+4. **Real-time Capability**: Execute actions with minimal latency
+
+</ConceptExplainer>
+
+<ArchitectureDiagram
+  variant="components"
+  title="VLA Model Deployment Architecture"
+  description="Shows the VLA model receiving multimodal inputs and producing direct robot actions"
+  highlightElements={["vision_encoder", "language_encoder", "fusion", "action_head", "robot_interface"]}
+/>
+
+## VLA Model Inference Implementation
+
+<CodeExample
+  language="python"
+  title="VLA Inference Node"
+  description="Node that runs VLA model inference in real-time"
+  code={`import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image, JointState
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+from cv_bridge import CvBridge
+import torch
+import torch.nn as nn
+import numpy as np
+import cv2
+from transformers import CLIPVisionModel, CLIPTextModel, CLIPTokenizer
+import threading
+import time
+from typing import Dict, Any
+
+class VLAInferenceNode(Node):
+    def __init__(self):
+        super().__init__('vla_inference_node')
+
+        # Initialize CV bridge for image conversion
+        self.bridge = CvBridge()
+
+        # Subscribe to camera images and language commands
+        self.image_sub = self.create_subscription(
+            Image,
+            'camera/image_raw',
+            self.image_callback,
+            10
+        )
+        self.command_sub = self.create_subscription(
+            String,
+            'vla_commands',  # Commands specifically for VLA model
+            self.command_callback,
+            10
+        )
+
+        # Publishers for different types of robot commands
+        self.joint_cmd_pub = self.create_publisher(JointState, 'joint_commands', 10)
+        self.twist_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        # Initialize VLA model components
+        self.vla_model = self.initialize_vla_model()
+        self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+
+        # Store latest inputs
+        self.latest_image = None
+        self.latest_command = None
+        self.input_lock = threading.RLock()
+
+        # Performance tracking
+        self.inference_times = []
+        self.frame_count = 0
+
+        # Model optimization settings
+        self.model_precision = 'fp16'  # Use half precision for speed
+        self.batch_size = 1  # Real-time processing
+        self.use_gpu = torch.cuda.is_available()
+
+        if self.use_gpu:
+            self.get_logger().info('Using GPU for VLA inference')
+            self.vla_model = self.vla_model.cuda()
+        else:
+            self.get_logger().info('Using CPU for VLA inference')
+
+        # Set model to evaluation mode
+        self.vla_model.eval()
+
+        self.get_logger().info('VLA Inference node initialized')
+
+    def initialize_vla_model(self):
+        """
+        Initialize VLA model (simplified implementation)
+        In practice, this would load a pre-trained VLA model like OpenVLA
+        """
+        # This is a simplified VLA model architecture
+        # In practice, you would load a real pre-trained model like OpenVLA
+        return SimplifiedVLAModel(
+            vision_dim=768,
+            text_dim=512,
+            action_dim=20,  # Example: 7 joint positions + 7 velocities + 6 forces/torques
+            hidden_dim=1024
+        )
+
+    def image_callback(self, msg):
+        """Process incoming camera image"""
+        try:
+            # Convert ROS Image to OpenCV
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+
+            # Store the image for processing with command
+            with self.input_lock:
+                self.latest_image = cv_image
+
+            # If we have both image and command, run inference
+            if self.latest_command is not None:
+                self.process_vla_inference()
+
+        except Exception as e:
+            self.get_logger().error(f'Error processing image: {e}')
+
+    def command_callback(self, msg):
+        """Process incoming language command"""
+        command = msg.data
+
+        with self.input_lock:
+            self.latest_command = command
+
+        # If we have an image, run inference
+        if self.latest_image is not None:
+            self.process_vla_inference()
+
+    def process_vla_inference(self):
+        """Run VLA inference with latest image and command"""
+        start_time = time.time()
+
+        with self.input_lock:
+            if self.latest_image is None or self.latest_command is None:
+                return
+
+            # Copy the data to avoid race conditions during processing
+            image = self.latest_image.copy()
+            command = self.latest_command
+
+        try:
+            # Preprocess inputs
+            image_tensor = self.preprocess_image(image)
+            text_tensor = self.preprocess_text(command)
+
+            # Move tensors to GPU if available
+            if self.use_gpu:
+                image_tensor = image_tensor.cuda()
+                text_tensor = text_tensor.cuda()
+
+            # Run VLA model inference
+            with torch.no_grad():  # Disable gradient computation for inference
+                actions = self.vla_model(image_tensor, text_tensor)
+
+            # Move actions back to CPU for ROS publishing
+            if self.use_gpu:
+                actions = actions.cpu()
+
+            # Convert and publish actions
+            self.publish_actions(actions)
+
+            # Performance tracking
+            inference_time = time.time() - start_time
+            self.inference_times.append(inference_time)
+
+            # Log performance periodically
+            self.frame_count += 1
+            if self.frame_count % 10 == 0:
+                avg_time = sum(self.inference_times[-10:]) / min(len(self.inference_times), 10)
+                fps = 1.0 / avg_time if avg_time > 0 else 0
+                self.get_logger().info(f'VLA inference: {avg_time:.3f}s ({fps:.1f} FPS)')
+
+            # Clear processed inputs
+            with self.input_lock:
+                self.latest_image = None
+                self.latest_command = None
+
+        except Exception as e:
+            self.get_logger().error(f'Error in VLA inference: {e}')
+
+    def preprocess_image(self, image):
+        """Preprocess image for VLA model input"""
+        # Resize image to model's expected input size (224x224 for CLIP-based models)
+        resized = cv2.resize(image, (224, 224))
+
+        # Convert BGR to RGB
+        rgb_image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+
+        # Normalize pixel values to [0, 1] then standardize
+        normalized = rgb_image.astype(np.float32) / 255.0
+
+        # Standardize using ImageNet statistics
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        standardized = (normalized - mean) / std
+
+        # Convert to tensor and add batch dimension
+        tensor_image = torch.from_numpy(standardized).permute(2, 0, 1).unsqueeze(0).float()
+
+        return tensor_image
+
+    def preprocess_text(self, command):
+        """Preprocess language command for VLA model input"""
+        # Use CLIP tokenizer
+        inputs = self.tokenizer(
+            command,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=77
+        )
+        return inputs['input_ids']
+
+    def publish_actions(self, actions):
+        """Publish generated actions to appropriate ROS topics"""
+        action_array = actions.squeeze(0).numpy()  # Remove batch dimension
+
+        # Determine action type based on the command or action vector characteristics
+        if len(action_array) >= 7:  # At least 7 values for joint control
+            # Publish as joint commands
+            joint_msg = JointState()
+            joint_msg.position = action_array[:7].tolist()  # First 7 for positions
+            if len(action_array) >= 14:
+                joint_msg.velocity = action_array[7:14].tolist()  # Next 7 for velocities
+            if len(action_array) >= 20:
+                joint_msg.effort = action_array[14:20].tolist()  # Next 6 for efforts
+
+            self.joint_cmd_pub.publish(joint_msg)
+
+        if len(action_array) >= 2:  # At least 2 values for differential drive
+            # Publish as velocity commands
+            twist_msg = Twist()
+            twist_msg.linear.x = float(action_array[0])  # Forward/backward
+            twist_msg.angular.z = float(action_array[1])  # Rotation
+
+            self.twist_pub.publish(twist_msg)
+
+        self.get_logger().debug(f'Published actions: {action_array[:5]}...')  # Log first 5 values
+
+class SimplifiedVLAModel(nn.Module):
+    """
+    Simplified VLA model for demonstration purposes.
+    In practice, this would be replaced with a real VLA model like OpenVLA.
+    """
+    def __init__(self, vision_dim, text_dim, action_dim, hidden_dim):
+        super().__init__()
+
+        # Vision encoder (simplified)
+        self.vision_encoder = nn.Sequential(
+            nn.Conv2d(3, 32, 8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(64 * 7 * 7, vision_dim),  # Assumes 224->56->26->7 after convolutions
+            nn.ReLU()
+        )
+
+        # Text encoder (simplified)
+        self.text_encoder = nn.Sequential(
+            nn.Linear(77, text_dim),  # 77 is typical for CLIP tokenization
+            nn.ReLU(),
+            nn.Linear(text_dim, text_dim),
+            nn.ReLU()
+        )
+
+        # Fusion network to combine vision and text
+        self.fusion = nn.Sequential(
+            nn.Linear(vision_dim + text_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim // 2, action_dim)
+        )
+
+    def forward(self, image, text):
+        """
+        Forward pass through the VLA model
+        """
+        # Encode visual features
+        vision_features = self.vision_encoder(image)
+
+        # Encode text features (simplified - assumes text is already tokenized)
+        # In practice, text would go through a proper transformer encoder
+        batch_size = image.size(0)
+        text_features = torch.zeros(batch_size, 512)  # Placeholder for text encoding
+        # This is where a real text encoder would be used
+
+        # Combine vision and text features
+        combined_features = torch.cat([vision_features, text_features], dim=-1)
+
+        # Generate actions
+        actions = self.fusion(combined_features)
+
+        return actions
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    vla_node = VLAInferenceNode()
+
+    try:
+        rclpy.spin(vla_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        vla_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Isaac Sim Integration
+
+<ConceptExplainer
+  concept="Isaac Sim Integration"
+  description="Isaac Sim integration involves connecting VLA models to NVIDIA's photorealistic robotics simulation environment for testing, validation, and training of vision-language-action systems."
+  examples={[
+    "Real-time camera feed from Isaac Sim to VLA model",
+    "Action commands from VLA model to Isaac Sim robots",
+    "Sensor data integration for perception-action loops",
+    "Domain randomization for sim-to-real transfer"
+  ]}
+  relatedConcepts={["Simulation Testing", "Photorealistic Rendering", "Domain Randomization", "Sim-to-Real Transfer"]}
+>
+
+### Isaac Sim Benefits for VLA
+
+1. **Photorealistic Environments**: High-fidelity rendering for robust perception
+2. **Physics Accuracy**: Realistic physics simulation for action validation
+3. **Domain Randomization**: Techniques to improve sim-to-real transfer
+4. **Safety**: Risk-free testing of complex behaviors
+5. **Scalability**: Parallel testing of multiple scenarios
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Isaac Sim VLA Interface"
+  description="Interface between Isaac Sim and VLA model for simulation testing"
+  code={`import carb
+import omni
+from omni.isaac.core import World
+from omni.isaac.core.utils.stage import add_reference_to_stage
+from omni.isaac.core.utils.nucleus import get_assets_root_path
+from omni.isaac.core.utils.prims import get_prim_at_path
+from omni.isaac.sensor import Camera
+from omni.isaac.core.robots import Robot
+from omni.isaac.core.articulations import ArticulationView
+from pxr import Gf
+import numpy as np
+import torch
+import threading
+import time
+from typing import Optional
+
+class IsaacSimVLAInterface:
+    """
+    Interface between Isaac Sim and VLA model for simulation testing
+    """
+    def __init__(self, robot_name="/World/Robot"):
+        self.world = World(stage_units_in_meters=1.0)
+        self.robot_name = robot_name
+
+        # Initialize VLA model (in practice, this would connect to ROS node)
+        self.vla_model = self.initialize_vla_model()
+
+        # Camera for vision input
+        self.camera = None
+        self.camera_resolution = (640, 480)
+
+        # Robot interface
+        self.robot = None
+        self.robot_view = None
+
+        # State tracking
+        self.latest_observation = None
+        self.latest_command = None
+        self.is_running = False
+
+        # Threading for continuous operation
+        self.main_thread = threading.Thread(target=self.main_loop)
+        self.main_thread.daemon = True
+
+        self.setup_simulation()
+
+    def setup_simulation(self):
+        """Set up the Isaac Sim environment"""
+        # Get Isaac Sim assets
+        assets_root_path = get_assets_root_path()
+        if assets_root_path is None:
+            carb.log_error("Isaac Sim assets not found, please enable Kit Extension: Isaac Examples")
+            return
+
+        # Add a robot to the scene (example with Franka)
+        franka_asset_path = assets_root_path + "/Isaac/Robots/Franka/franka_instanceable.usd"
+        add_reference_to_stage(usd_path=franka_asset_path, prim_path=self.robot_name)
+
+        # Add a camera to the robot
+        self.camera = Camera(
+            prim_path=f"{self.robot_name}/camera",
+            frequency=30,
+            resolution=self.camera_resolution,
+            position=np.array([0.0, 0.0, 0.1]),
+            orientation=Gf.Quath(1.0, 0.0, 0.0, 0.0)  # No rotation
+        )
+
+        # Add the camera to the world
+        self.world.scene.add(self.camera)
+
+        # Get the robot
+        self.robot = self.world.scene.get_object(self.robot_name)
+        self.world.reset()
+
+        # Create articulation view for controlling the robot
+        self.robot_view = ArticulationView(prim_paths_expr=f"{self.robot_name}.*")
+        self.world.scene.add(self.robot_view)
+
+        carb.log_info("Isaac Sim VLA Interface initialized")
+
+    def initialize_vla_model(self):
+        """
+        Initialize VLA model for simulation (placeholder)
+        In practice, this would connect to the ROS VLA inference node
+        """
+        # This would typically load a pre-trained VLA model
+        # For this example, we'll create a simple model
+        return SimpleVLAForSimulation()
+
+    def start_simulation(self):
+        """Start the simulation loop"""
+        self.is_running = True
+        self.main_thread.start()
+
+    def stop_simulation(self):
+        """Stop the simulation"""
+        self.is_running = False
+        if self.main_thread.is_alive():
+            self.main_thread.join()
+
+    def main_loop(self):
+        """Main simulation loop"""
+        while self.is_running and omni.kit.app.get_app().is_running():
+            try:
+                # Step the world
+                self.world.step(render=True)
+
+                # Get current observation (camera image + robot state)
+                observation = self.get_observation()
+
+                # If we have a command, run VLA inference
+                if self.latest_command is not None:
+                    actions = self.run_vla_inference(observation, self.latest_command)
+
+                    # Execute actions in simulation
+                    self.execute_actions(actions)
+
+                    # Clear the processed command
+                    self.latest_command = None
+
+                # Small delay to control loop rate
+                time.sleep(1.0/60.0)  # 60 FPS
+
+            except Exception as e:
+                carb.log_error(f"Error in main loop: {e}")
+                break
+
+    def get_observation(self):
+        """Get current observation from simulation"""
+        # Get camera image
+        image = self.camera.get_render_product().get_texture()
+        if image is not None:
+            # Convert to numpy array (simplified)
+            image_np = np.array(image.get_cpu_view(), copy=True)
+        else:
+            image_np = np.zeros((self.camera_resolution[1], self.camera_resolution[0], 3), dtype=np.uint8)
+
+        # Get robot state
+        if self.robot_view is not None:
+            joint_positions = self.robot_view.get_joint_positions()
+            joint_velocities = self.robot_view.get_joint_velocities()
+            end_effector_pose = self.robot_view.get_end_effector_positions_orientations()
+        else:
+            joint_positions = np.zeros(7)
+            joint_velocities = np.zeros(7)
+            end_effector_pose = (np.zeros(3), np.array([0, 0, 0, 1]))
+
+        observation = {
+            'image': image_np,
+            'joint_positions': joint_positions,
+            'joint_velocities': joint_velocities,
+            'end_effector_pose': end_effector_pose,
+            'timestamp': time.time()
+        }
+
+        self.latest_observation = observation
+        return observation
+
+    def run_vla_inference(self, observation, command):
+        """Run VLA inference with observation and command"""
+        try:
+            # Preprocess observation and command for VLA model
+            image_tensor = self.preprocess_image(observation['image'])
+            command_tensor = self.preprocess_command(command)
+
+            # Run VLA model inference
+            with torch.no_grad():
+                actions = self.vla_model(image_tensor, command_tensor)
+
+            # Convert to numpy for Isaac Sim
+            return actions.numpy().squeeze(0)
+
+        except Exception as e:
+            carb.log_error(f"Error in VLA inference: {e}")
+            return np.zeros(7)  # Default zero actions on error
+
+    def preprocess_image(self, image):
+        """Preprocess image for VLA model"""
+        # Resize image
+        resized = cv2.resize(image, (224, 224))
+
+        # Convert to tensor format
+        normalized = resized.astype(np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        standardized = (normalized - mean) / std
+
+        tensor_image = torch.from_numpy(standardized).permute(2, 0, 1).unsqueeze(0).float()
+        return tensor_image
+
+    def preprocess_command(self, command):
+        """Preprocess command for VLA model"""
+        # In practice, this would tokenize the command
+        # For now, return a placeholder
+        return torch.zeros(1, 77)  # 77 tokens placeholder
+
+    def execute_actions(self, actions):
+        """Execute actions in Isaac Sim"""
+        if self.robot_view is not None:
+            # Apply joint position commands
+            if len(actions) >= 7:
+                joint_positions = actions[:7]
+                self.robot_view.set_joint_position_targets(joint_positions)
+
+    def send_command(self, command: str):
+        """Send a command to the VLA system"""
+        self.latest_command = command
+
+class SimpleVLAForSimulation(nn.Module):
+    """
+    Simple VLA model for simulation purposes
+    """
+    def __init__(self):
+        super().__init__()
+        # Simple linear model for demonstration
+        self.model = nn.Linear(224*224*3 + 77, 7)  # Flattened image + tokens -> 7 joint actions
+
+    def forward(self, image, command):
+        """Forward pass"""
+        # Flatten image and concatenate with command
+        batch_size = image.size(0)
+        flattened_image = image.view(batch_size, -1)
+        combined = torch.cat([flattened_image, command], dim=1)
+
+        # Generate actions
+        actions = self.model(combined)
+
+        # Clamp actions to reasonable ranges
+        actions = torch.tanh(actions)  # Output between -1 and 1
+
+        return actions
+
+# Example usage function
+def run_vla_simulation_example():
+    """Example of how to run the VLA simulation interface"""
+    # Initialize the interface
+    sim_interface = IsaacSimVLAInterface()
+
+    # Start the simulation
+    sim_interface.start_simulation()
+
+    # Send a command after a brief moment
+    time.sleep(2)  # Wait for simulation to stabilize
+    sim_interface.send_command("Move the robot's end effector forward")
+
+    # Let it run for a while
+    time.sleep(10)
+
+    # Stop the simulation
+    sim_interface.stop_simulation()
+
+if __name__ == "__main__":
+    run_vla_simulation_example()`}
+/>
+
+## End-to-End Voice-to-Action Pipeline
+
+<ArchitectureDiagram
+  variant="workflow"
+  title="End-to-End Voice-to-Action Pipeline"
+  description="Shows the complete pipeline from voice command to robot action execution in simulation"
+  highlightElements={["voice_input", "speech_rec", "vla_model", "isaac_sim", "robot_action"]}
+/>
+
+<CodeExample
+  language="python"
+  title="Complete Voice-to-VLA Pipeline"
+  description="Integration of voice processing, VLA inference, and simulation execution"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from sensor_msgs.msg import Image
+from geometry_msgs.msg import Twist
+from cv_bridge import CvBridge
+import torch
+import numpy as np
+import threading
+import time
+
+class EndToEndVLAPipelineNode(Node):
+    def __init__(self):
+        super().__init__('end_to_end_vla_pipeline')
+
+        # Initialize CV bridge
+        self.bridge = CvBridge()
+
+        # Subscribe to voice commands
+        self.voice_sub = self.create_subscription(
+            String,
+            'transcribed_text',  # From voice processing pipeline
+            self.voice_command_callback,
+            10
+        )
+
+        # Subscribe to camera images from Isaac Sim
+        self.image_sub = self.create_subscription(
+            Image,
+            'isaac_sim_camera/image',  # From Isaac Sim camera
+            self.image_callback,
+            10
+        )
+
+        # Publishers for robot commands
+        self.joint_cmd_pub = self.create_publisher(JointState, 'isaac_sim_robot/joint_commands', 10)
+        self.twist_pub = self.create_publisher(Twist, 'isaac_sim_robot/cmd_vel', 10)
+
+        # Initialize VLA model
+        self.vla_model = self.initialize_vla_model()
+        self.tokenizer = self.initialize_tokenizer()
+
+        # Pipeline state
+        self.latest_image = None
+        self.latest_command = None
+        self.pipeline_lock = threading.RLock()
+
+        # Performance tracking
+        self.pipeline_times = []
+        self.pipeline_count = 0
+
+        # Model optimization
+        self.use_gpu = torch.cuda.is_available()
+        if self.use_gpu:
+            self.vla_model = self.vla_model.cuda()
+
+        self.vla_model.eval()
+
+        self.get_logger().info('End-to-End VLA Pipeline initialized')
+
+    def initialize_vla_model(self):
+        """Initialize the VLA model for end-to-end pipeline"""
+        # In practice, this would load a real VLA model
+        # For this example, we'll use a simplified version
+        return SimplifiedVLAModel(
+            vision_dim=768,
+            text_dim=512,
+            action_dim=20,
+            hidden_dim=1024
+        )
+
+    def initialize_tokenizer(self):
+        """Initialize text tokenizer for VLA model"""
+        # In practice, this would be a real tokenizer
+        # For this example, we'll use a simple approach
+        return SimpleTokenizer()
+
+    def voice_command_callback(self, msg):
+        """Process voice command and trigger pipeline if image is available"""
+        command = msg.data.strip()
+
+        if not command:
+            return
+
+        self.get_logger().info(f'Received voice command: {command}')
+
+        with self.pipeline_lock:
+            self.latest_command = command
+
+        # If we have an image, run the full pipeline
+        if self.latest_image is not None:
+            self.execute_full_pipeline()
+
+    def image_callback(self, msg):
+        """Process camera image and trigger pipeline if command is available"""
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+
+            with self.pipeline_lock:
+                self.latest_image = cv_image
+
+            # If we have a command, run the full pipeline
+            if self.latest_command is not None:
+                self.execute_full_pipeline()
+
+        except Exception as e:
+            self.get_logger().error(f'Error processing image: {e}')
+
+    def execute_full_pipeline(self):
+        """Execute the complete voice-to-action pipeline"""
+        start_time = time.time()
+
+        with self.pipeline_lock:
+            if self.latest_image is None or self.latest_command is None:
+                return
+
+            # Copy data to avoid race conditions during processing
+            image = self.latest_image.copy()
+            command = self.latest_command
+
+        try:
+            # Preprocess inputs
+            image_tensor = self.preprocess_image(image)
+            text_tensor = self.preprocess_text(command)
+
+            # Move to GPU if available
+            if self.use_gpu:
+                image_tensor = image_tensor.cuda()
+                text_tensor = text_tensor.cuda()
+
+            # Run VLA inference
+            with torch.no_grad():
+                actions = self.vla_model(image_tensor, text_tensor)
+
+            # Move back to CPU for ROS publishing
+            if self.use_gpu:
+                actions = actions.cpu()
+
+            # Publish actions to Isaac Sim
+            self.publish_actions_to_sim(actions)
+
+            # Performance tracking
+            pipeline_time = time.time() - start_time
+            self.pipeline_times.append(pipeline_time)
+
+            # Log performance periodically
+            self.pipeline_count += 1
+            if self.pipeline_count % 10 == 0:
+                avg_time = sum(self.pipeline_times[-10:]) / min(len(self.pipeline_times), 10)
+                fps = 1.0 / avg_time if avg_time > 0 else 0
+                self.get_logger().info(f'Pipeline: {avg_time:.3f}s ({fps:.1f} FPS)')
+
+            # Clear processed inputs
+            with self.pipeline_lock:
+                self.latest_image = None
+                self.latest_command = None
+
+        except Exception as e:
+            self.get_logger().error(f'Error in full pipeline: {e}')
+
+    def preprocess_image(self, image):
+        """Preprocess image for VLA model"""
+        # Resize image
+        resized = cv2.resize(image, (224, 224))
+
+        # Convert BGR to RGB
+        rgb_image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+
+        # Normalize
+        normalized = rgb_image.astype(np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        standardized = (normalized - mean) / std
+
+        # Convert to tensor
+        tensor_image = torch.from_numpy(standardized).permute(2, 0, 1).unsqueeze(0).float()
+
+        return tensor_image
+
+    def preprocess_text(self, command):
+        """Preprocess text command for VLA model"""
+        # In practice, use a real tokenizer
+        # For this example, we'll simulate tokenization
+        tokens = torch.randint(0, 1000, (1, 77), dtype=torch.long)  # Simulated tokens
+        return tokens
+
+    def publish_actions_to_sim(self, actions):
+        """Publish actions to Isaac Sim robot"""
+        action_array = actions.squeeze(0).numpy()
+
+        # Publish joint commands
+        if len(action_array) >= 7:
+            joint_msg = JointState()
+            joint_msg.position = action_array[:7].tolist()
+            if len(action_array) >= 14:
+                joint_msg.velocity = action_array[7:14].tolist()
+            if len(action_array) >= 20:
+                joint_msg.effort = action_array[14:20].tolist()
+
+            self.joint_cmd_pub.publish(joint_msg)
+
+        # Publish velocity commands
+        if len(action_array) >= 2:
+            twist_msg = Twist()
+            twist_msg.linear.x = float(action_array[0])
+            twist_msg.angular.z = float(action_array[1])
+
+            self.twist_pub.publish(twist_msg)
+
+        self.get_logger().debug(f'Published actions to sim: {action_array[:5]}...')
+
+    def destroy_node(self):
+        """Clean up resources"""
+        super().destroy_node()
+
+class SimpleTokenizer:
+    """Simple tokenizer for demonstration"""
+    def encode(self, text):
+        """Encode text to tokens"""
+        # In practice, this would use a real tokenizer
+        # For this example, we'll return a simple representation
+        return torch.randint(0, 1000, (77,))  # 77 tokens
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    pipeline_node = EndToEndVLAPipelineNode()
+
+    try:
+        rclpy.spin(pipeline_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        pipeline_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Performance Optimization for Real-Time Inference
+
+<ConceptExplainer
+  concept="VLA Performance Optimization"
+  description="VLA performance optimization involves techniques to ensure real-time inference while maintaining accuracy, including model quantization, hardware acceleration, and efficient architectures."
+  examples={[
+    "Model quantization to reduce computational requirements",
+    "Hardware acceleration using GPUs or specialized AI chips",
+    "Efficient architectures like MobileVLA",
+    "Caching and prediction for common scenarios"
+  ]}
+  relatedConcepts={["Model Compression", "Hardware Acceleration", "Real-Time Systems", "Edge AI"]}
+>
+
+### Optimization Strategies
+
+1. **Model Quantization**: Reduce precision for faster inference
+2. **Pruning**: Remove unnecessary connections
+3. **Knowledge Distillation**: Create smaller, faster student models
+4. **Hardware Acceleration**: Leverage GPUs, TPUs, or specialized AI chips
+5. **Batch Processing**: Process multiple inputs efficiently
+6. **Caching**: Store results for common inputs
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="VLA Performance Optimization"
+  description="Techniques to optimize VLA model for real-time performance"
+  code={`import torch
+import torch.nn as nn
+import torch.quantization as tq
+from torch.utils.mobile_optimizer import optimize_for_mobile
+import time
+
+class VLAOptimizer:
+    """
+    Class for optimizing VLA models for real-time inference
+    """
+    def __init__(self, model):
+        self.model = model
+        self.original_model = model
+
+    def quantize_model(self, calibrate_data_loader=None, backend='x86'):
+        """
+        Apply post-training quantization to the model
+        """
+        # Set model to evaluation mode
+        self.model.eval()
+
+        # Choose quantization configuration
+        if backend == 'x86':
+            qconfig = torch.quantization.get_default_qconfig('fbgemm')
+        elif backend == 'arm':
+            qconfig = torch.quantization.get_default_qconfig('qnnpack')
+        else:
+            raise ValueError(f"Unsupported backend: {backend}")
+
+        # Create a copy of the model for quantization
+        quantized_model = torch.quantization.prepare(self.model, qconfig)
+
+        # If calibration data is provided, run calibration
+        if calibrate_data_loader is not None:
+            print("Calibrating quantized model...")
+            with torch.no_grad():
+                for i, (images, texts) in enumerate(calibrate_data_loader):
+                    if i >= 10:  # Only calibrate with first 10 batches
+                        break
+                    _ = quantized_model(images, texts)
+
+        # Convert the calibrated model
+        quantized_model = torch.quantization.convert(quantized_model)
+
+        print(f"Model quantized. Size reduction: {self._calculate_size_reduction(self.original_model, quantized_model)}x")
+        return quantized_model
+
+    def optimize_for_mobile(self):
+        """
+        Optimize model for mobile deployment
+        """
+        self.model.eval()
+        example_image = torch.randn(1, 3, 224, 224)
+        example_text = torch.randint(0, 1000, (1, 77))
+
+        # Trace the model
+        traced_model = torch.jit.trace(self.model, (example_image, example_text))
+
+        # Optimize for mobile
+        optimized_model = optimize_for_mobile(traced_model)
+
+        return optimized_model
+
+    def prune_model(self, sparsity=0.2):
+        """
+        Apply pruning to reduce model size and improve inference speed
+        """
+        import torch.nn.utils.prune as prune
+
+        # Define parameters to prune (convolutional and linear layers)
+        parameters_to_prune = []
+        for name, module in self.model.named_modules():
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+                parameters_to_prune.append((module, "weight"))
+
+        # Apply magnitude-based pruning
+        for module, param_name in parameters_to_prune:
+            prune.l1_unstructured(module, name=param_name, amount=sparsity)
+
+        # Remove reparameterization (make pruning permanent)
+        for name, module in self.model.named_modules():
+            if isinstance(module, (nn.Conv2d, nn.Linear)):
+                prune.remove(module, "weight")
+
+        print(f"Model pruned to {sparsity*100}% sparsity")
+        return self.model
+
+    def compile_model(self):
+        """
+        Compile the model using PyTorch 2.0's torch.compile (if available)
+        """
+        try:
+            compiled_model = torch.compile(self.model)
+            print("Model compiled with torch.compile")
+            return compiled_model
+        except Exception as e:
+            print(f"Compilation failed (torch.compile not available or model not compatible): {e}")
+            return self.model
+
+    def benchmark_model(self, test_data_loader, num_batches=10):
+        """
+        Benchmark the model's inference speed
+        """
+        self.model.eval()
+        times = []
+
+        with torch.no_grad():
+            for i, (images, texts) in enumerate(test_data_loader):
+                if i >= num_batches:
+                    break
+
+                start_time = time.time()
+
+                # Move to GPU if available
+                if torch.cuda.is_available():
+                    images = images.cuda()
+                    texts = texts.cuda()
+
+                # Run inference
+                _ = self.model(images, texts)
+
+                # Synchronize GPU if using CUDA
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+
+                end_time = time.time()
+                times.append(end_time - start_time)
+
+        avg_time = sum(times) / len(times)
+        fps = 1.0 / avg_time if avg_time > 0 else 0
+
+        print(f"Benchmark results:")
+        print(f"  Average inference time: {avg_time:.4f}s ({avg_time*1000:.2f}ms)")
+        print(f"  Average FPS: {fps:.2f}")
+        print(f"  Std dev: {np.std(times):.4f}s")
+
+        return avg_time, fps
+
+    def _calculate_size_reduction(self, original_model, quantized_model):
+        """
+        Calculate approximate size reduction from quantization
+        """
+        # This is a rough estimate - actual size depends on model architecture
+        original_size = sum(p.numel() for p in original_model.parameters()) * 4  # 4 bytes per float32
+        quantized_size = sum(p.numel() for p in quantized_model.parameters()) * 1  # 1 byte per int8
+        return original_size / quantized_size if quantized_size > 0 else 1
+
+class OptimizedVLAInferenceNode(VLAInferenceNode):
+    """
+    VLA Inference Node with performance optimizations
+    """
+    def __init__(self):
+        super().__init__()
+
+        # Apply optimizations to the VLA model
+        self.optimizer = VLAOptimizer(self.vla_model)
+
+        # Apply multiple optimization techniques
+        self.vla_model = self.optimizer.prune_model(sparsity=0.15)  # Prune 15% of weights
+        self.vla_model = self.optimizer.compile_model()  # Compile if available
+
+        # Set model to evaluation mode
+        self.vla_model.eval()
+
+        # Use mixed precision if GPU supports it
+        if self.use_gpu and hasattr(torch.cuda, 'amp'):
+            self.scaler = torch.cuda.amp.GradScaler(enabled=False)  # Disable for inference
+        else:
+            self.scaler = None
+
+        self.get_logger().info('VLA model optimized for real-time inference')
+
+    def process_vla_inference(self):
+        """Optimized VLA inference with performance enhancements"""
+        start_time = time.time()
+
+        with self.input_lock:
+            if self.latest_image is None or self.latest_command is None:
+                return
+
+            # Copy the data to avoid race conditions during processing
+            image = self.latest_image.copy()
+            command = self.latest_command
+
+        try:
+            # Preprocess inputs
+            image_tensor = self.preprocess_image(image)
+            text_tensor = self.preprocess_text(command)
+
+            # Move tensors to GPU if available
+            if self.use_gpu:
+                image_tensor = image_tensor.cuda()
+                text_tensor = text_tensor.cuda()
+
+            # Run VLA model inference with optimizations
+            with torch.no_grad():
+                if self.scaler is not None:
+                    with torch.cuda.amp.autocast():
+                        actions = self.vla_model(image_tensor, text_tensor)
+                else:
+                    actions = self.vla_model(image_tensor, text_tensor)
+
+            # Move actions back to CPU for ROS publishing
+            if self.use_gpu:
+                actions = actions.cpu()
+
+            # Convert and publish actions
+            self.publish_actions(actions)
+
+            # Performance tracking
+            inference_time = time.time() - start_time
+            self.inference_times.append(inference_time)
+
+            # Log performance periodically
+            self.frame_count += 1
+            if self.frame_count % 10 == 0:
+                avg_time = sum(self.inference_times[-10:]) / min(len(self.inference_times), 10)
+                fps = 1.0 / avg_time if avg_time > 0 else 0
+                self.get_logger().info(f'Optimized VLA inference: {avg_time:.3f}s ({fps:.1f} FPS)')
+
+            # Clear processed inputs
+            with self.input_lock:
+                self.latest_image = None
+                self.latest_command = None
+
+        except Exception as e:
+            self.get_logger().error(f'Error in optimized VLA inference: {e}')
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    # Use the optimized version
+    vla_node = OptimizedVLAInferenceNode()
+
+    try:
+        rclpy.spin(vla_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        vla_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Testing and Evaluation in Simulation
+
+### Running the Complete VLA System
+
+1. **Start Isaac Sim Environment**:
+   ```bash
+   # Launch Isaac Sim with appropriate scene
+   ./isaac-sim/python.sh -c "
+   from omni.isaac.examples.cortex.cortex import CortexExample
+   import omni.kit.core_utils as utils
+
+   # Create and run the example
+   example = CortexExample()
+   example.run()
+   "
+   ```
+
+2. **Launch VLA System**:
+   ```bash
+   # Start the complete VLA pipeline
+   ros2 run vla_integration end_to_end_vla_pipeline
+   ros2 run vla_integration vla_inference_node
+   ros2 run vla_integration isaac_sim_interface
+   ```
+
+3. **Test Commands**:
+   ```bash
+   # Send voice commands through the pipeline
+   ros2 topic pub /transcribed_text std_msgs/String "data: 'Move the robot forward'"
+   ros2 topic pub /transcribed_text std_msgs/String "data: 'Grasp the red object'"
+   ros2 topic pub /transcribed_text std_msgs/String "data: 'Navigate to the kitchen area'"
+   ```
+
+### Performance Evaluation Metrics
+
+- **Inference Latency**: Time from input to action output
+- **Action Success Rate**: Percentage of actions that achieve intended effect
+- **Perception Accuracy**: How well the model interprets visual input
+- **Command Following**: Accuracy of command interpretation
+- **Real-time Performance**: Ability to maintain target frame rate
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+- **High Latency**: Apply model optimization techniques (quantization, pruning)
+- **Memory Issues**: Use smaller model variants or reduce batch size
+- **Inconsistent Actions**: Improve training data diversity and domain randomization
+- **Sim-to-Real Gap**: Use domain adaptation techniques and fine-tuning
+- **GPU Memory Errors**: Implement model offloading or use CPU inference
+
+## Summary
+
+This example demonstrated the complete end-to-end VLA pipeline:
+
+1. Deployment of VLA models for real-time inference
+2. Integration with Isaac Sim for simulation-based testing
+3. Creation of the complete voice-to-action pipeline
+4. Performance optimization techniques for real-time execution
+5. Evaluation methodologies for VLA system performance
+
+The system now represents a complete implementation of Vision-Language-Action capabilities, from natural language commands to direct robot action execution in simulation, incorporating all components developed in the previous examples.
+
+This concludes Module 4: Vision-Language-Action (VLA), providing students with a comprehensive understanding of how to integrate speech recognition, LLM-based planning, and VLA models for humanoid robotics control.
+
+</ChapterLayout>

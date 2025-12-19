@@ -1,0 +1,508 @@
+---
+sidebar_label: "Example 1: Voice Command Echo"
+sidebar_position: 1
+title: "Example 1: Voice Command Echo"
+description: "Basic audio capture and transcription example to establish the foundational voice processing pipeline"
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+
+<ChapterLayout
+  title="Example 1: Voice Command Echo"
+  description="Basic audio capture and transcription example to establish the foundational voice processing pipeline"
+  previous={{path: '/docs/module-4-vision-language-action/end-to-end-vla-control', title: 'End-to-End VLA Control'}}
+  next={{path: '/docs/module-4-vision-language-action/examples/llm-task-decomposition', title: 'Example 2: LLM Task Decomposition'}}
+>
+
+## Learning Objectives
+
+After completing this example, you will be able to:
+
+- Set up basic audio capture and processing pipeline
+- Integrate speech recognition for real-time transcription
+- Create a simple echo system that repeats voice commands
+- Verify the audio pipeline functionality
+- Implement confidence scoring for transcriptions
+
+## Introduction
+
+This example establishes the foundational voice processing pipeline by creating a simple system that captures audio, transcribes it, and echoes the text back. This serves as the base for more complex voice-to-action systems.
+
+## Basic Audio Capture Setup
+
+<ConceptExplainer
+  concept="Audio Capture Pipeline"
+  description="The audio capture pipeline is responsible for receiving audio input from a microphone, converting it to a digital format, and preparing it for processing by the speech recognition system."
+  examples={[
+    "Capturing audio from system microphone",
+    "Buffering audio for real-time processing",
+    "Converting audio formats for different systems"
+  ]}
+  relatedConcepts={["Audio Processing", "Real-Time Systems", "Signal Processing", "ROS Audio"]}
+>
+
+### Key Components
+
+1. **Audio Input**: Microphone or audio source
+2. **Digitization**: Conversion to digital format
+3. **Buffering**: Temporary storage for processing
+4. **Preprocessing**: Noise reduction, normalization
+5. **Streaming**: Continuous processing of audio chunks
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Basic Audio Capture Node"
+  description="Simple ROS 2 node that captures audio and publishes raw audio data"
+  code={`import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import AudioData
+import pyaudio
+import threading
+import numpy as np
+
+class AudioCaptureNode(Node):
+    def __init__(self):
+        super().__init__('audio_capture_node')
+
+        # Publisher for raw audio data
+        self.audio_pub = self.create_publisher(AudioData, 'audio_raw', 10)
+
+        # Audio parameters
+        self.rate = 16000  # Sample rate (16kHz for good speech quality)
+        self.chunk = 1024  # Buffer size
+        self.format = pyaudio.paInt16  # 16-bit format
+        self.channels = 1  # Mono
+
+        # Initialize PyAudio
+        self.audio = pyaudio.PyAudio()
+
+        # Start audio capture in separate thread
+        self.capture_thread = threading.Thread(target=self.capture_audio)
+        self.capture_thread.daemon = True
+        self.capture_thread.start()
+
+        self.get_logger().info(f'Audio capture initialized at {self.rate}Hz, {self.channels} channel(s)')
+
+    def capture_audio(self):
+        """Capture audio in a separate thread to avoid blocking"""
+        try:
+            stream = self.audio.open(
+                format=self.format,
+                channels=self.channels,
+                rate=self.rate,
+                input=True,
+                frames_per_buffer=self.chunk
+            )
+
+            self.get_logger().info('Audio stream opened, starting capture...')
+
+            while rclpy.ok():
+                # Read audio data
+                data = stream.read(self.chunk, exception_on_overflow=False)
+
+                # Create and populate AudioData message
+                audio_msg = AudioData()
+                audio_msg.data = data
+                audio_msg.channel_count = self.channels
+                audio_msg.sample_rate = self.rate
+                audio_msg.encoding = 'int16'  # 16-bit integer
+                audio_msg.step = 2  # 2 bytes per sample (int16)
+
+                # Publish audio data
+                self.audio_pub.publish(audio_msg)
+
+        except Exception as e:
+            self.get_logger().error(f'Error in audio capture: {e}')
+        finally:
+            if 'stream' in locals():
+                stream.stop_stream()
+                stream.close()
+
+    def destroy_node(self):
+        """Clean shutdown of audio resources"""
+        self.audio.terminate()
+        super().destroy_node()
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    audio_node = AudioCaptureNode()
+
+    try:
+        rclpy.spin(audio_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        audio_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Speech Recognition Integration
+
+<ConceptExplainer
+  concept="Real-Time Speech Recognition"
+  description="Real-time speech recognition involves processing audio streams continuously to convert speech to text with minimal latency, which is essential for responsive voice-controlled systems."
+  examples={[
+    "Continuous audio processing in chunks",
+    "Streaming transcription with confidence scoring",
+    "Real-time language identification"
+  ]}
+  relatedConcepts={["Stream Processing", "Latency Optimization", "Speech Recognition", "Real-Time Systems"]}
+>
+
+### Real-Time Processing Considerations
+
+1. **Latency**: Minimize delay between speech and transcription
+2. **Chunking**: Process audio in small segments for responsiveness
+3. **Confidence**: Track reliability of transcriptions
+4. **Buffering**: Manage audio data flow efficiently
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Speech Recognition Node"
+  description="Node that performs speech recognition on captured audio"
+  code={`import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import AudioData
+from std_msgs.msg import String
+import numpy as np
+import threading
+import queue
+import vosk
+import json
+
+class SpeechRecognitionNode(Node):
+    def __init__(self):
+        super().__init__('speech_recognition_node')
+
+        # Load Vosk model (download from https://alphacephei.com/vosk/models first)
+        # For this example, we'll use a placeholder path
+        try:
+            self.model = vosk.Model(lang='en-us')  # or path to model directory
+            self.recognizer = vosk.KaldiRecognizer(self.model, 16000)  # 16kHz sample rate
+        except Exception as e:
+            self.get_logger().error(f'Failed to load Vosk model: {e}')
+            self.get_logger().info('Please download a Vosk model from https://alphacephei.com/vosk/models')
+            return
+
+        # Subscribe to audio data
+        self.audio_sub = self.create_subscription(
+            AudioData,
+            'audio_raw',
+            self.audio_callback,
+            10
+        )
+
+        # Publisher for transcribed text
+        self.text_pub = self.create_publisher(String, 'transcribed_text', 10)
+
+        # Publisher for confidence scores
+        self.confidence_pub = self.create_publisher(String, 'transcription_confidence', 10)
+
+        # Audio buffer for continuous recognition
+        self.audio_buffer = b""
+        self.buffer_lock = threading.Lock()
+
+        # Result queue for processed transcriptions
+        self.result_queue = queue.Queue()
+
+        self.get_logger().info('Speech recognition node initialized')
+
+    def audio_callback(self, msg):
+        """Process incoming audio data"""
+        # Convert ROS AudioData to bytes
+        audio_bytes = bytes(msg.data)
+
+        # Add to buffer with thread safety
+        with self.buffer_lock:
+            self.audio_buffer += audio_bytes
+
+        # Process buffer when it reaches a certain size
+        self.process_buffer()
+
+    def process_buffer(self):
+        """Process accumulated audio buffer"""
+        with self.buffer_lock:
+            # Process chunks of sufficient size (e.g., 16000 samples = 1 second at 16kHz)
+            while len(self.audio_buffer) >= 8000:  # Half-second chunks for responsiveness
+                chunk = self.audio_buffer[:8000]
+                self.audio_buffer = self.audio_buffer[8000:]
+
+                # Feed audio chunk to recognizer
+                if self.recognizer.AcceptWaveform(chunk):
+                    # Partial result is ready
+                    result_json = self.recognizer.Result()
+                    result = json.loads(result_json)
+
+                    if 'text' in result and result['text'].strip():
+                        transcription = result['text'].strip()
+
+                        # Publish transcription
+                        text_msg = String()
+                        text_msg.data = transcription
+                        self.text_pub.publish(text_msg)
+
+                        # Publish confidence if available
+                        if 'conf' in result:
+                            conf_msg = String()
+                            conf_msg.data = f"Confidence: {result['conf']:.2f}"
+                            self.confidence_pub.publish(conf_msg)
+
+                        self.get_logger().info(f'Transcribed: {transcription}')
+                else:
+                    # Partial result (interim transcription)
+                    partial_result = self.recognizer.PartialResult()
+                    # Optionally publish partial results for very low-latency feedback
+
+    def destroy_node(self):
+        """Clean up resources"""
+        # Finalize recognition
+        if hasattr(self, 'recognizer'):
+            final_result = self.recognizer.FinalResult()
+
+        super().destroy_node()
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    speech_node = SpeechRecognitionNode()
+
+    try:
+        rclpy.spin(speech_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        speech_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Voice Command Echo Implementation
+
+<ConceptExplainer
+  concept="Voice Command Echo"
+  description="A voice command echo system listens to spoken commands, transcribes them, and then repeats or confirms them back to the user, serving as a basic verification of the voice processing pipeline."
+  examples={[
+    "Echoing 'Move forward' after user says it",
+    "Confirming 'Got it' after hearing a command",
+    "Logging all heard commands for debugging"
+  ]}
+  relatedConcepts={["Voice Feedback", "Command Verification", "Pipeline Testing", "User Confirmation"]}
+>
+
+### Echo System Components
+
+1. **Input Processing**: Receive and transcribe voice commands
+2. **Output Generation**: Create appropriate echo responses
+3. **Timing**: Manage response timing for natural interaction
+4. **Validation**: Verify successful transcription before echoing
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Voice Command Echo Node"
+  description="Complete node that captures, recognizes, and echoes voice commands"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from std_msgs.msg import Bool
+import time
+
+class VoiceEchoNode(Node):
+    def __init__(self):
+        super().__init__('voice_echo_node')
+
+        # Subscribe to transcribed text
+        self.text_sub = self.create_subscription(
+            String,
+            'transcribed_text',
+            self.text_callback,
+            10
+        )
+
+        # Publisher for echoed text
+        self.echo_pub = self.create_publisher(String, 'voice_echo', 10)
+
+        # Publisher for command receipt confirmation
+        self.confirmation_pub = self.create_publisher(String, 'command_confirmation', 10)
+
+        # Track recent commands to avoid repetition
+        self.recent_commands = []
+        self.command_timeout = 2.0  # seconds to remember commands
+
+        self.get_logger().info('Voice echo node initialized')
+
+    def text_callback(self, msg):
+        """Process transcribed text and echo it back"""
+        command = msg.data.strip()
+
+        if not command:
+            return
+
+        # Check if this command is a duplicate of recent ones
+        if self.is_recent_duplicate(command):
+            self.get_logger().info(f'Ignoring duplicate command: {command}')
+            return
+
+        self.get_logger().info(f'Received command: {command}')
+
+        # Publish echo
+        echo_msg = String()
+        echo_msg.data = f'ECHO: {command}'
+        self.echo_pub.publish(echo_msg)
+
+        # Publish confirmation
+        confirm_msg = String()
+        confirm_msg.data = f'Heard: {command}'
+        self.confirmation_pub.publish(confirm_msg)
+
+        # Add to recent commands list with timestamp
+        self.recent_commands.append({
+            'command': command,
+            'timestamp': time.time()
+        })
+
+        # Clean up old commands
+        self.cleanup_old_commands()
+
+        self.get_logger().info(f'Echoed: {echo_msg.data}')
+
+    def is_recent_duplicate(self, command):
+        """Check if command is a duplicate of recent ones"""
+        current_time = time.time()
+
+        for item in self.recent_commands:
+            if (current_time - item['timestamp']) < self.command_timeout:
+                if item['command'].lower() == command.lower():
+                    return True
+            else:
+                # This command is old enough to be removed
+                pass  # Will be cleaned up later
+
+        return False
+
+    def cleanup_old_commands(self):
+        """Remove old commands from tracking list"""
+        current_time = time.time()
+        self.recent_commands = [
+            cmd for cmd in self.recent_commands
+            if (current_time - cmd['timestamp']) < self.command_timeout
+        ]
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    echo_node = VoiceEchoNode()
+
+    try:
+        rclpy.spin(echo_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        echo_node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()`}
+/>
+
+## Launch File Configuration
+
+<ArchitectureDiagram
+  variant="communication"
+  title="Voice Echo System Architecture"
+  description="Shows the communication flow between audio capture, speech recognition, and echo components"
+  highlightElements={["audio_capture", "speech_recognition", "voice_echo", "publishers", "subscribers"]}
+/>
+
+<CodeExample
+  language="xml"
+  title="Launch File for Voice Echo System"
+  description="Launch file to start all components of the voice echo system"
+  code={`<?xml version="1.0"?>
+<launch>
+  <!-- Audio Capture Node -->
+  <node pkg="audio_capture_package" exec="audio_capture_node" name="audio_capture" output="screen">
+    <param name="rate" value="16000"/>
+    <param name="chunk" value="1024"/>
+    <param name="channels" value="1"/>
+  </node>
+
+  <!-- Speech Recognition Node -->
+  <node pkg="speech_recognition_package" exec="speech_recognition_node" name="speech_recognition" output="screen">
+    <param name="model_path" value="$(find-pkg-share speech_recognition_package)/models/vosk-model-en-us-0.22-lgraph"/>
+    <param name="sample_rate" value="16000"/>
+  </node>
+
+  <!-- Voice Echo Node -->
+  <node pkg="voice_echo_package" exec="voice_echo_node" name="voice_echo" output="screen">
+  </node>
+
+  <!-- Optional: Text-to-Speech for audible echo -->
+  <node pkg="tts_package" exec="tts_node" name="text_to_speech" output="screen">
+    <remap from="text_input" to="voice_echo"/>
+  </node>
+</launch>`}
+/>
+
+## Testing and Validation
+
+### Running the Voice Echo System
+
+1. **Install Dependencies**:
+   ```bash
+   pip install pyaudio vosk numpy
+   # Download Vosk model from https://alphacephei.com/vosk/models
+   ```
+
+2. **Launch the System**:
+   ```bash
+   ros2 launch voice_echo_system voice_echo.launch.py
+   ```
+
+3. **Test Commands**:
+   - Speak clearly into the microphone
+   - Listen for the echoed text in the console
+   - Verify transcription accuracy
+
+### Expected Behavior
+
+- System should capture audio continuously
+- Transcribe speech with reasonable accuracy
+- Echo back heard commands
+- Log confidence scores for quality assessment
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+- **No Audio Input**: Check microphone permissions and connections
+- **Poor Recognition**: Ensure quiet environment and clear speech
+- **High Latency**: Reduce audio buffer size or use faster model
+- **Wrong Sample Rate**: Match audio capture and model sample rates (usually 16kHz)
+
+## Summary
+
+This example established the foundational voice processing pipeline by implementing:
+
+1. Audio capture from microphone
+2. Real-time speech recognition using Vosk
+3. Voice command echo functionality
+4. Proper ROS 2 messaging patterns
+
+The system serves as a verification that the voice processing pipeline is working correctly, forming the basis for more complex voice-controlled robot behaviors in subsequent examples.
+
+</ChapterLayout>

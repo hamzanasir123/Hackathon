@@ -1,0 +1,562 @@
+---
+sidebar_label: "Voice-to-Action – Speech Recognition and Natural Language Command Processing"
+sidebar_position: 2
+title: "Chapter 1 - Voice-to-Action – Speech Recognition and Natural Language Command Processing"
+description: "Integrating OpenAI Whisper or open-source alternatives for real-time speech-to-text; preprocessing voice commands; basic ROS 2 nodes for audio capture and transcription; bridging spoken instructions to textual inputs for downstream processing"
+---
+
+import ChapterLayout from '@site/src/components/ChapterLayout';
+import ConceptExplainer from '@site/src/components/ConceptExplainer';
+import CodeExample from '@site/src/components/CodeExample';
+import ArchitectureDiagram from '@site/src/components/ArchitectureDiagram';
+import SimulationExample from '@site/src/components/SimulationExample';
+
+<ChapterLayout
+  title="Chapter 1 - Voice-to-Action – Speech Recognition and Natural Language Command Processing"
+  description="Integrating OpenAI Whisper or open-source alternatives for real-time speech-to-text; preprocessing voice commands; basic ROS 2 nodes for audio capture and transcription; bridging spoken instructions to textual inputs for downstream processing"
+  previous={{path: '/docs/module-4-vision-language-action', title: 'Module 4: Vision-Language-Action (VLA)'}}
+  next={{path: '/docs/module-4-vision-language-action/cognitive-planning', title: 'Cognitive Planning with LLMs'}}
+>
+
+## Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Understand speech recognition pipeline components for humanoid robotics
+- Implement ROS 2 nodes for audio capture and preprocessing
+- Integrate OpenAI Whisper or open-source alternatives (Vosk, DeepSpeech) for real-time speech-to-text conversion
+- Preprocess voice commands for improved accuracy
+- Bridge spoken instructions to textual inputs for downstream processing in ROS 2
+- Handle confidence scoring and error conditions in speech recognition
+
+## Introduction to Voice Command Processing
+
+<ConceptExplainer
+  concept="Voice Command Processing Pipeline"
+  analogy="The voice command processing pipeline is like a human ear-brain-mouth system where audio input is received, interpreted, and converted into actionable commands."
+  description="Voice command processing in robotics involves capturing audio, converting it to text, and transforming that text into executable robot actions. This creates a natural interface for human-robot interaction."
+  examples={[
+    "Converting 'Move forward' to a navigation goal",
+    "Transforming 'Pick up the red ball' into manipulation actions",
+    "Processing 'Stop immediately' into an emergency halt command"
+  ]}
+  relatedConcepts={["Speech Recognition", "Natural Language Processing", "ROS 2 Audio", "Human-Robot Interaction"]}
+>
+
+### Key Components of Voice Processing
+
+1. **Audio Capture**: Microphone input and digitization
+2. **Preprocessing**: Noise reduction, normalization, and enhancement
+3. **Speech Recognition**: Converting audio to text
+4. **Natural Language Processing**: Understanding command intent
+5. **Action Mapping**: Converting commands to ROS 2 actions
+
+</ConceptExplainer>
+
+<ArchitectureDiagram
+  variant="communication"
+  title="Voice Command Processing Architecture"
+  description="Shows the complete pipeline from audio input to ROS 2 action commands"
+  highlightElements={["audio_capture", "preprocessing", "speech_rec", "nlp", "ros_actions"]}
+/>
+
+## Speech Recognition Technologies
+
+### OpenAI Whisper Integration
+
+<ConceptExplainer
+  concept="OpenAI Whisper"
+  description="Whisper is a robust automatic speech recognition (ASR) system trained on a large dataset of diverse audio. It's particularly effective for robotics applications due to its multilingual support and accuracy."
+  examples={[
+    "High accuracy across multiple languages",
+    "Robust performance in various acoustic conditions",
+    "Multiple model sizes for different computational requirements"
+  ]}
+  relatedConcepts={["ASR", "Transformer Models", "Multilingual Support"]}
+>
+
+### Whisper Model Variants
+
+| Model | Size | Required VRAM | Relative Speed | English-only | Multilingual |
+|-------|------|---------------|----------------|--------------|--------------|
+| tiny  | 75 MB | ~1 GB | ~32x | ✓ | ✓ |
+| base  | 145 MB | ~1 GB | ~16x | ✓ | ✓ |
+| small | 485 MB | ~2 GB | ~6x | ✓ | ✓ |
+| medium | 1.5 GB | ~5 GB | ~2x | ✓ | ✓ |
+| large | 3.0 GB | ~10 GB | 1x | ✗ | ✓ |
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Whisper Integration with ROS 2"
+  description="Python code to integrate Whisper for real-time speech recognition in a ROS 2 node"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from sensor_msgs.msg import AudioData
+import whisper
+import numpy as np
+import threading
+
+class WhisperNode(Node):
+    def __init__(self):
+        super().__init__('whisper_node')
+
+        # Load Whisper model (using 'base' for real-time performance)
+        self.model = whisper.load_model("base")
+
+        # Subscribe to audio data
+        self.audio_sub = self.create_subscription(
+            AudioData,
+            'audio',
+            self.audio_callback,
+            10
+        )
+
+        # Publisher for transcribed text
+        self.text_pub = self.create_publisher(
+            String,
+            'voice_commands',
+            10
+        )
+
+        # For processing audio in separate thread
+        self.audio_buffer = []
+        self.processing_lock = threading.Lock()
+
+    def audio_callback(self, msg):
+        # Convert audio data to numpy array
+        audio_array = np.frombuffer(msg.data, dtype=np.int16).astype(np.float32) / 32768.0
+
+        with self.processing_lock:
+            self.audio_buffer.extend(audio_array)
+
+            # Process when we have enough audio data (e.g., 4 seconds)
+            if len(self.audio_buffer) >= 4 * 16000:  # 4 seconds at 16kHz
+                audio_segment = np.array(self.audio_buffer[:4 * 16000])
+                self.audio_buffer = self.audio_buffer[4 * 16000:]
+
+                # Process in separate thread to avoid blocking
+                threading.Thread(target=self.process_audio, args=(audio_segment,)).start()
+
+    def process_audio(self, audio_segment):
+        try:
+            # Transcribe the audio segment
+            result = self.model.transcribe(audio_segment)
+            transcription = result['text'].strip()
+
+            if transcription:  # Only publish non-empty transcriptions
+                msg = String()
+                msg.data = transcription
+                self.text_pub.publish(msg)
+                self.get_logger().info(f'Transcribed: {transcription}')
+
+        except Exception as e:
+            self.get_logger().error(f'Error in transcription: {e}')`}
+/>
+
+### Open-Source Alternatives
+
+<ConceptExplainer
+  concept="Vosk Speech Recognition"
+  description="Vosk is an open-source speech recognition toolkit that provides lightweight, offline speech recognition capabilities suitable for robotics applications."
+  examples={[
+    "Lightweight models suitable for embedded systems",
+    "Multiple language support",
+    "Fast recognition with good accuracy"
+  ]}
+  relatedConcepts={["Offline ASR", "Kaldi", "Embedded Systems"]}
+>
+
+#### Vosk Implementation
+
+<CodeExample
+  language="python"
+  title="Vosk Integration with ROS 2"
+  description="Python code to integrate Vosk for offline speech recognition in a ROS 2 node"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from sensor_msgs.msg import AudioData
+import vosk
+import json
+import numpy as np
+import threading
+
+class VoskNode(Node):
+    def __init__(self):
+        super().__init__('vosk_node')
+
+        # Initialize Vosk model (download from vosk-models before use)
+        self.model = vosk.Model(lang="en-us")  # or path to model directory
+        self.recognizer = vosk.KaldiRecognizer(self.model, 16000)  # 16kHz sample rate
+
+        # Subscribe to audio data
+        self.audio_sub = self.create_subscription(
+            AudioData,
+            'audio',
+            self.audio_callback,
+            10
+        )
+
+        # Publisher for transcribed text
+        self.text_pub = self.create_publisher(
+            String,
+            'voice_commands',
+            10
+        )
+
+        self.audio_buffer = b""
+
+    def audio_callback(self, msg):
+        # Convert ROS AudioData to bytes
+        audio_bytes = bytes(msg.data)
+        self.audio_buffer += audio_bytes
+
+        # Process in chunks of 16000 samples (1 second at 16kHz)
+        while len(self.audio_buffer) >= 16000 * 2:  # 2 bytes per sample for int16
+            chunk = self.audio_buffer[:16000 * 2]
+            self.audio_buffer = self.audio_buffer[16000 * 2:]
+
+            if self.recognizer.AcceptWaveform(chunk):
+                result = self.recognizer.Result()
+                result_dict = json.loads(result)
+
+                if 'text' in result_dict and result_dict['text']:
+                    transcription = result_dict['text'].strip()
+                    if transcription:
+                        msg = String()
+                        msg.data = transcription
+                        self.text_pub.publish(msg)
+                        self.get_logger().info(f'Transcribed: {transcription}')`}
+/>
+
+</ConceptExplainer>
+
+## Audio Preprocessing for Robotics
+
+### Noise Reduction and Enhancement
+
+<ConceptExplainer
+  concept="Audio Preprocessing"
+  description="Audio preprocessing is crucial for robotics applications where environmental noise, robot motor sounds, and reverberation can significantly impact speech recognition accuracy."
+  examples={[
+    "Noise reduction filters to remove background sounds",
+    "Echo cancellation for speaker feedback",
+    "Audio normalization for consistent input levels"
+  ]}
+  relatedConcepts={["Digital Signal Processing", "Filtering", "Acoustic Echo Cancellation"]}
+>
+
+### Common Preprocessing Techniques
+
+1. **Noise Reduction**: Apply spectral subtraction or Wiener filtering
+2. **Normalization**: Adjust amplitude to consistent levels
+3. **Filtering**: Apply bandpass filters to focus on speech frequencies (300Hz-3400Hz)
+4. **Voice Activity Detection**: Identify speech vs. non-speech segments
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Audio Preprocessing Pipeline"
+  description="Python implementation of audio preprocessing for robotics applications"
+  code={`import numpy as np
+from scipy import signal
+import soundfile as sf
+
+def preprocess_audio(audio_data, sample_rate=16000):
+    """
+    Preprocess audio for improved speech recognition
+    """
+    # Convert to float32 if needed
+    if audio_data.dtype != np.float32:
+        audio_data = audio_data.astype(np.float32)
+
+    # Normalize audio to [-1, 1] range
+    audio_data = audio_data / np.max(np.abs(audio_data))
+
+    # Apply pre-emphasis filter to boost high frequencies
+    audio_data = signal.lfilter([1, -0.97], [1], audio_data)
+
+    # Apply bandpass filter (300Hz - 3400Hz) to focus on speech
+    low_freq = 300.0
+    high_freq = 3400.0
+    nyquist_rate = sample_rate / 2.0
+
+    low = low_freq / nyquist_rate
+    high = high_freq / nyquist_rate
+
+    b, a = signal.butter(4, [low, high], btype='band')
+    audio_data = signal.filtfilt(b, a, audio_data)
+
+    # Apply noise reduction using spectral subtraction
+    # (Simplified version - more sophisticated methods exist)
+    audio_data = apply_simple_noise_reduction(audio_data)
+
+    return audio_data
+
+def apply_simple_noise_reduction(audio_data, noise_threshold=0.01):
+    """
+    Simple noise reduction by attenuating low-amplitude segments
+    """
+    # Calculate amplitude envelope
+    amplitude = np.abs(audio_data)
+
+    # Create mask for segments above noise threshold
+    mask = amplitude > noise_threshold
+
+    # Apply soft attenuation to low-amplitude segments
+    attenuation = 0.3  # Reduce noise segments by 70%
+    audio_data = audio_data * (mask.astype(float) + (1 - mask.astype(float)) * attenuation)
+
+    return audio_data`}
+/>
+
+## ROS 2 Audio Integration
+
+### Audio Capture Nodes
+
+<ArchitectureDiagram
+  variant="components"
+  title="ROS 2 Audio Integration Architecture"
+  description="Shows how audio capture and processing nodes integrate with the ROS 2 ecosystem"
+  highlightElements={["audio_capture", "preprocessing", "recognition", "command_processing"]}
+/>
+
+<CodeExample
+  language="python"
+  title="ROS 2 Audio Capture Node"
+  description="Complete ROS 2 node for capturing audio from system microphone"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from sensor_msgs.msg import AudioData
+import pyaudio
+import threading
+import numpy as np
+
+class AudioCaptureNode(Node):
+    def __init__(self):
+        super().__init__('audio_capture_node')
+
+        # Publisher for raw audio data
+        self.audio_pub = self.create_publisher(
+            AudioData,
+            'audio',
+            10
+        )
+
+        # Audio parameters
+        self.rate = 16000  # Sample rate
+        self.chunk = 1024  # Buffer size
+        self.format = pyaudio.paInt16
+        self.channels = 1
+
+        # Initialize PyAudio
+        self.audio = pyaudio.PyAudio()
+
+        # Start audio capture in separate thread
+        self.capture_thread = threading.Thread(target=self.capture_audio)
+        self.capture_thread.daemon = True
+        self.capture_thread.start()
+
+        self.get_logger().info('Audio capture node initialized')
+
+    def capture_audio(self):
+        stream = self.audio.open(
+            format=self.format,
+            channels=self.channels,
+            rate=self.rate,
+            input=True,
+            frames_per_buffer=self.chunk
+        )
+
+        try:
+            while rclpy.ok():
+                # Read audio data
+                data = stream.read(self.chunk, exception_on_overflow=False)
+
+                # Create AudioData message
+                msg = AudioData()
+                msg.data = data
+
+                # Publish audio data
+                self.audio_pub.publish(msg)
+
+        except Exception as e:
+            self.get_logger().error(f'Audio capture error: {e}')
+        finally:
+            stream.stop_stream()
+            stream.close()
+
+    def destroy_node(self):
+        self.audio.terminate()
+        super().destroy_node()`}
+/>
+
+## Command Processing and Validation
+
+### Confidence Scoring and Error Handling
+
+<ConceptExplainer
+  concept="Confidence Scoring"
+  description="Confidence scoring provides a measure of how reliable a speech recognition result is, enabling the system to handle uncertain transcriptions appropriately."
+  examples={[
+    "Rejecting transcriptions below confidence threshold",
+    "Requesting clarification for low-confidence commands",
+    "Falling back to alternative actions when confidence is low"
+  ]}
+  relatedConcepts={["Uncertainty Quantification", "Error Handling", "Fallback Strategies"]}
+>
+
+### Confidence-Based Processing
+
+```python
+def process_transcription_with_confidence(transcription, confidence_score, threshold=0.7):
+    if confidence_score < threshold:
+        # Low confidence - request clarification or ignore
+        return {"action": "request_clarification", "command": transcription}
+    elif confidence_score < 0.9:
+        # Medium confidence - confirm before executing
+        return {"action": "confirm", "command": transcription}
+    else:
+        # High confidence - execute directly
+        return {"action": "execute", "command": transcription}
+```
+
+</ConceptExplainer>
+
+<CodeExample
+  language="python"
+  title="Command Validation and Processing"
+  description="Validate and process voice commands with confidence scoring"
+  code={`import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+import re
+
+class CommandProcessorNode(Node):
+    def __init__(self):
+        super().__init__('command_processor')
+
+        # Subscribe to voice commands
+        self.command_sub = self.create_subscription(
+            String,
+            'voice_commands',
+            self.command_callback,
+            10
+        )
+
+        # Publisher for robot commands
+        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        # Define command patterns
+        self.command_patterns = {
+            'move_forward': r'\\b(forward|ahead|go|move)\\b',
+            'move_backward': r'\\b(backward|back|reverse)\\b',
+            'turn_left': r'\\b(left|turn\\s+left|rotate\\s+left)\\b',
+            'turn_right': r'\\b(right|turn\\s+right|rotate\\s+right)\\b',
+            'stop': r'\\b(stop|halt|pause)\\b',
+            'speed_up': r'\\b(faster|speed|increase)\\b',
+            'slow_down': r'\\b(slower|slow|decrease)\\b'
+        }
+
+        self.get_logger().info('Command processor initialized')
+
+    def command_callback(self, msg):
+        command = msg.data.lower().strip()
+
+        # Validate command confidence (simplified approach)
+        if self.is_command_valid(command):
+            self.process_command(command)
+        else:
+            self.get_logger().warn(f'Invalid or unrecognized command: {command}')
+
+    def is_command_valid(self, command):
+        # Check if command matches any known pattern
+        for pattern in self.command_patterns.values():
+            if re.search(pattern, command):
+                return True
+        return False
+
+    def process_command(self, command):
+        # Determine command type
+        for action, pattern in self.command_patterns.items():
+            if re.search(pattern, command):
+                self.execute_action(action)
+                self.get_logger().info(f'Executed command: {action} for "{command}"')
+                return
+
+    def execute_action(self, action):
+        twist = Twist()
+
+        if action == 'move_forward':
+            twist.linear.x = 0.5  # Forward at 0.5 m/s
+        elif action == 'move_backward':
+            twist.linear.x = -0.5  # Backward at 0.5 m/s
+        elif action == 'turn_left':
+            twist.angular.z = 0.5  # Turn left at 0.5 rad/s
+        elif action == 'turn_right':
+            twist.angular.z = -0.5  # Turn right at 0.5 rad/s
+        elif action == 'stop':
+            # Zero velocities (already initialized)
+            pass
+
+        self.cmd_vel_pub.publish(twist)`}
+/>
+
+## Performance Optimization
+
+### Real-time Processing Considerations
+
+<ConceptExplainer
+  concept="Real-time Processing Requirements"
+  description="Voice command processing for robotics requires careful attention to latency and throughput to ensure responsive interaction."
+  examples={[
+    "Processing audio with <500ms latency",
+    "Maintaining consistent performance during robot operation",
+    "Optimizing models for embedded hardware (Jetson, etc.)"
+  ]}
+  relatedConcepts={["Real-time Systems", "Latency Optimization", "Embedded AI"]}
+>
+
+### Optimization Strategies
+
+1. **Model Selection**: Use smaller models for real-time applications
+2. **Batch Processing**: Process audio in chunks for efficiency
+3. **Hardware Acceleration**: Leverage GPU/CUDA for neural network inference
+4. **Caching**: Cache frequently used commands or phrases
+
+</ConceptExplainer>
+
+## Troubleshooting Common Issues
+
+### Audio Quality Problems
+
+- **Background Noise**: Implement noise reduction algorithms or use directional microphones
+- **Motor Noise**: Apply adaptive filtering to remove robot motor sounds
+- **Echo/Reverb**: Use acoustic echo cancellation if robot has speakers
+- **Audio Clipping**: Implement automatic gain control to prevent distortion
+
+### Recognition Accuracy Issues
+
+- **Low Accuracy**: Try different model sizes or preprocessing techniques
+- **Language Mismatch**: Ensure model matches spoken language
+- **Audio Format Issues**: Verify sample rate and bit depth compatibility
+
+## Summary
+
+This chapter introduced the fundamentals of voice command processing for humanoid robots. You learned how to:
+
+- Integrate speech recognition systems (Whisper, Vosk) with ROS 2
+- Preprocess audio for improved recognition accuracy
+- Handle confidence scoring and error conditions
+- Process voice commands into actionable robot commands
+- Optimize for real-time performance requirements
+
+The next chapter will explore how to use Large Language Models to decompose complex voice commands into sequences of atomic robot actions.
+
+</ChapterLayout>

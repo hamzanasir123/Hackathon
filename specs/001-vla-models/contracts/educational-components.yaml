@@ -1,0 +1,285 @@
+# API Contract: Educational Components for VLA Module
+
+openapi: 3.0.0
+info:
+  title: Educational Components API for VLA Module
+  description: Defines the structure and interfaces for educational components used in Module 4 - Vision-Language-Action (VLA)
+  version: 1.0.0
+
+paths: {}
+
+components:
+  schemas:
+    ChapterLayout:
+      type: object
+      description: Layout component for educational chapter pages
+      properties:
+        children:
+          type: string
+          description: Child content to be rendered in the layout
+        title:
+          type: string
+          description: Chapter title
+        description:
+          type: string
+          description: Chapter description
+        previous:
+          $ref: '#/components/schemas/NavigationLink'
+        next:
+          $ref: '#/components/schemas/NavigationLink'
+      required:
+        - children
+        - title
+        - description
+
+    NavigationLink:
+      type: object
+      description: Navigation link structure
+      properties:
+        path:
+          type: string
+          description: Path to the linked page
+        title:
+          type: string
+          description: Title of the linked page
+      required:
+        - path
+        - title
+
+    CodeExample:
+      type: object
+      description: Component for displaying code examples with syntax highlighting
+      properties:
+        language:
+          type: string
+          description: Programming language for syntax highlighting
+          enum: [python, xml, yaml, usd, bash, json, javascript]
+        title:
+          type: string
+          description: Title for the code example
+        description:
+          type: string
+          description: Description of what the code demonstrates
+        code:
+          type: string
+          description: The actual code content
+        showControls:
+          type: boolean
+          description: Whether to show copy/run controls
+          default: true
+      required:
+        - language
+        - code
+
+    ConceptExplainer:
+      type: object
+      description: Component for explaining concepts with analogies and examples
+      properties:
+        concept:
+          type: string
+          description: Name of the concept being explained
+        analogy:
+          type: string
+          description: Real-world analogy for the concept
+        description:
+          type: string
+          description: Detailed explanation of the concept
+        examples:
+          type: array
+          items:
+            type: string
+          description: Specific examples of the concept
+        relatedConcepts:
+          type: array
+          items:
+            type: string
+          description: Related concepts to the main concept
+        children:
+          type: string
+          description: Additional content within the explainer
+      required:
+        - concept
+        - description
+
+    ArchitectureDiagram:
+      type: object
+      description: Component for displaying architectural diagrams
+      properties:
+        variant:
+          type: string
+          description: Type of diagram to display
+          enum: [basic, advanced, communication, components]
+        title:
+          type: string
+          description: Title for the diagram
+        description:
+          type: string
+          description: Description of what the diagram shows
+        showLegend:
+          type: boolean
+          description: Whether to show the legend
+          default: true
+        highlightElements:
+          type: array
+          items:
+            type: string
+          description: Elements to highlight in the diagram
+      required:
+        - variant
+
+    SimulationExample:
+      type: object
+      description: Component for displaying simulation examples
+      properties:
+        title:
+          type: string
+          description: Title for the simulation example
+        description:
+          type: string
+          description: Description of the simulation
+        code:
+          type: string
+          description: Configuration code for the simulation
+        language:
+          type: string
+          description: Language of the configuration code
+          enum: [xml, python, yaml, usd]
+        simulationType:
+          type: string
+          description: Type of simulation
+          enum: [gazebo, isaac_sim, unity, ros]
+        showControls:
+          type: boolean
+          description: Whether to show run/copy controls
+          default: true
+        showPreview:
+          type: boolean
+          description: Whether to show simulation preview
+          default: true
+        children:
+          type: string
+          description: Additional content within the example
+      required:
+        - title
+        - simulationType
+
+    VoiceCommand:
+      type: object
+      description: Structure for voice command processing in educational content
+      properties:
+        transcription:
+          type: string
+          description: Text representation of spoken command
+        confidence:
+          type: number
+          description: Confidence score from speech recognition (0-1)
+          minimum: 0
+          maximum: 1
+        commandType:
+          type: string
+          description: Type of command (navigation, manipulation, etc.)
+          enum: [navigation, manipulation, perception, query, control]
+        timestamp:
+          type: string
+          description: When command was received (ISO 8601 format)
+      required:
+        - transcription
+        - confidence
+        - commandType
+        - timestamp
+
+    ActionSequence:
+      type: object
+      description: Sequence of actions for robot execution
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Action'
+          description: Ordered list of robot actions
+        estimatedDuration:
+          type: number
+          description: Expected time to complete sequence in seconds
+        successCriteria:
+          type: array
+          items:
+            type: string
+          description: Conditions for successful completion
+      required:
+        - actions
+        - estimatedDuration
+        - successCriteria
+
+    Action:
+      type: object
+      description: Individual robot action
+      properties:
+        actionType:
+          type: string
+          description: Type of action to perform
+          enum: [move_base, manipulate, perceive, navigate, gripper_control]
+        parameters:
+          type: object
+          description: Specific parameters for the action
+        timeout:
+          type: number
+          description: Seconds before action is considered failed
+        retryCount:
+          type: number
+          description: Number of times to retry if failed
+      required:
+        - actionType
+        - parameters
+        - timeout
+        - retryCount
+
+    VLAInput:
+      type: object
+      description: Input structure for Vision-Language-Action models
+      properties:
+        imageRef:
+          type: string
+          description: Reference to image data
+        textCommand:
+          type: string
+          description: Natural language command
+        preprocessingStatus:
+          type: string
+          description: Status of input preprocessing
+          enum: [success, failed, partial]
+        timestamp:
+          type: string
+          description: When input was captured (ISO 8601 format)
+      required:
+        - imageRef
+        - textCommand
+        - preprocessingStatus
+        - timestamp
+
+    RobotControlOutput:
+      type: object
+      description: Output from VLA models for robot control
+      properties:
+        controlCommands:
+          type: array
+          items:
+            type: string
+          description: Low-level control commands
+        confidence:
+          type: number
+          description: Confidence in the action sequence (0-1)
+          minimum: 0
+          maximum: 1
+        executionPlan:
+          type: array
+          items:
+            type: string
+          description: Sequence of planned actions
+        estimatedTime:
+          type: number
+          description: Time to execute in seconds
+      required:
+        - controlCommands
+        - confidence
+        - executionPlan
+        - estimatedTime
