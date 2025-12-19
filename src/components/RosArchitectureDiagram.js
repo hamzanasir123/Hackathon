@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './RosArchitectureDiagram.module.css';
+import BrowserOnly from '@docusaurus/BrowserOnly';
 
 /**
  * RosArchitectureDiagram Component
@@ -103,6 +104,7 @@ const RosArchitectureDiagram = ({ variant = 'basic', showLegend = true, highligh
 
   // Render the diagram
   return (
+    <BrowserOnly fallback={<div>Loading diagram...</div>}>
     <div className={styles.container}>
       <h3>{currentVariant.title}</h3>
       <div className={styles.diagram}>
@@ -154,6 +156,7 @@ const RosArchitectureDiagram = ({ variant = 'basic', showLegend = true, highligh
         </div>
       )}
     </div>
+    </BrowserOnly>
   );
 };
 
