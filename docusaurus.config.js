@@ -9,10 +9,10 @@ const config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://panaversity.github.io',
+  url: 'https://physical-ai-humanoid-robotics-cours-kappa.vercel.app',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub Pages: /<username>.github.io/<project-name>/
-  baseUrl: '/Hackathon/',
+  baseUrl: '/',
 
   // GitHub pages deployment config.
   organizationName: 'panaversity', // Usually your GitHub org/user name.
