@@ -42,7 +42,6 @@ const config = {
           // Please change this to your repo.
           editUrl: 'https://github.com/panaversity/Hackathon/edit/main/',
         },
-        minifyHtml: false,
         blog: false, // Disable blog as specified in requirements
         theme: {
           customCss: './src/css/custom.css',
