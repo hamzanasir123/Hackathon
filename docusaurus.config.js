@@ -19,7 +19,7 @@ const config = {
   projectName: 'Hackathon', // Usually your repo name.
 
   onBrokenLinks: 'warn',
-  onBrokenMarkdownLinks: 'warn',
+  scripts: [],
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -27,6 +27,7 @@ const config = {
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
+  
   },
 
   trailingSlash: true,
@@ -179,6 +180,7 @@ const config = {
       },
     ],
   ],
+  onBrokenMarkdownLinks: 'warn',
 };
 
 module.exports = config;
