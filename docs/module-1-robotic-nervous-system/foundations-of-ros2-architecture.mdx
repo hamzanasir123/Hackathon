@@ -73,10 +73,8 @@ The main architectural components of ROS 2 include:
 
 
 
-<BrowserOnly fallback={Loading interactive diagram...}>
-{() => (
-<RosArchitectureDiagram variant="advanced" showLegend={true} />
-)}
+<BrowserOnly fallback={<div>Loading interactive diagram...</div>}>
+  {() => <RosArchitectureDiagram variant="advanced" showLegend={true} />}
 </BrowserOnly>
 
 <ConceptExplainer
