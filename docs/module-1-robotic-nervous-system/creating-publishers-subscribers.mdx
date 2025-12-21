@@ -574,22 +574,21 @@ We've created a complete example package that demonstrates publishers and subscr
 
 ## Exercises
 
-<div className="exercise-container">
+
   <h4 className="exercise-title">Exercise 1: Temperature Publisher</h4>
   <p>Create a publisher node that simulates a temperature sensor. The node should publish temperature readings (as Float64 messages) to a topic called 'temperature' every 2 seconds. The temperature should vary randomly between 18°C and 25°C.</p>
-</div>
 
-<div className="exercise-container">
+
+
   <h4 className="exercise-title">Exercise 2: Data Aggregator</h4>
   <p>Create a subscriber node that listens to multiple topics (e.g., 'temperature', 'humidity', 'pressure') and aggregates the data. When it receives messages from all topics, it should log a combined reading.</p>
-</div>
 
-<div className="exercise-container">
+
+
   <h4 className="exercise-title">Exercise 3: Custom Message Publisher</h4>
   <p>Create a custom message type for a robot's status (e.g., with fields for battery level, current task, and error status). Then create a publisher that sends status updates every 5 seconds.</p>
-</div>
 
-<div className="exercise-container">
+
+
   <h4 className="exercise-title">Exercise 4: QoS Comparison</h4>
   <p>Implement the same publisher-subscriber pair with different QoS profiles (reliable vs best effort) and observe the differences in message delivery under various network conditions.</p>
-</div>

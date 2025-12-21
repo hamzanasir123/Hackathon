@@ -158,6 +158,7 @@ const config = {
 
   // Configure markdown features as specified in contract
   markdown: {
+    format: 'mdx',
     mermaid: true,
     mdx1Compat: {
       comments: true,
