@@ -1,3 +1,4 @@
+import BrowserOnly from '@docusaurus/BrowserOnly';
 ---
 sidebar_label: "Foundations of ROS 2 – Architecture and Core Concepts"
 sidebar_position: 2
@@ -70,8 +71,12 @@ The main architectural components of ROS 2 include:
 import RosArchitectureDiagram from '@site/src/components/RosArchitectureDiagram';
 import ConceptExplainer from '@site/src/components/ConceptExplainer';
 
-<RosArchitectureDiagram variant="advanced" showLegend={true} />
 
+<BrowserOnly fallback={<div>Loading diagram...</div>}>
+  {() => (
+    <RosArchitectureDiagram variant="advanced" showLegend={true} />
+  )}
+</BrowserOnly>
 
 <ConceptExplainer
   title="DDS in Real Life"
